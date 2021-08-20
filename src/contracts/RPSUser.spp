@@ -1,0 +1,140 @@
+/*
+  Implementation of contract RPSUser
+ */
+
+pragma ton-solidity >= 0.32.0;
+
+pragma AbiHeader expire;
+pragma AbiHeader pubkey;
+
+import "../libraries/RPSBase.sol";
+import "../interfaces/IRPSProvider.sol";
+import "../interfaces/IRPSCallback.sol";
+import "../interfaces/IRPSUser.sol";
+import "./MultiWallets.spp";
+
+contract RPSUser is
+IRPSUser
+, MultiWallets
+{
+  address static s_root ;
+  address static s_owner ;
+
+  struct Subscription {
+    address provider ;
+    uint32 serv_id ;
+    uint8 periods ;
+    address callback ;
+    uint64 sub_id ;
+    RPSBase.Service service ;
+    RPSBase.Status status ;
+  }
+
+  mapping ( uint64 => Subscription ) g_subscriptions ;
+  uint64 g_subscription_counter ;
+
+  function _check_owner() view
+  {
+    require(
+            msg.sender.value != 0 ?
+            msg.sender == s_owner :
+            msg.pubkey() == tvm.pubkey(),
+            RPSBase.EXN_AUTH_FAILED );
+    tvm.accept();
+  }
+  
+  constructor( ) public {
+    _check_owner();
+    tvm.accept();
+    
+    _MultiWallets();
+  }
+
+  function NeedWallet ( address token_root ) public
+  {
+    _check_owner();
+    _need_wallet( token_root );
+  }
+
+  function Subscribe( address provider,
+                      uint32 serv_id,
+                      uint8 periods,
+                      address callback ) public 
+  {
+    _check_owner();
+
+    RPSBase.Service empty_service;
+    Subscription sub = Subscription(
+                                           provider,
+                                           serv_id,
+                                           periods,
+                                           callback,
+                                           g_subscription_counter,
+                                           empty_service,
+                                           RPSBase.Status.Pending
+                                           );
+    g_subscriptions [ g_subscription_counter ] = sub ;
+    g_subscription_counter++;
+
+    IRPSProvider( provider ).
+      prepareSubscribe %{sol:gas:1 ton} ( sub.sub_id, serv_id );
+  }
+
+  function _get_subscription( uint64 sub_id )
+    internal inline view returns ( Subscription sub )
+  {
+    optional ( Subscription ) sub_opt = g_subscriptions.fetch(  sub_id );
+    require( sub_opt.hasValue(), RPSBase.EXN_AUTH_FAILED );
+    sub = sub_opt.get() ;
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+  }
+
+  function continueSubscribe( uint64 sub_id,
+                              RPSBase.Service s,
+                              address token_wallet ) public override
+  {
+    Subscription sub = _get_subscription( sub_id );
+    // TODO: check max periods
+    uint128 cost = sub.periods * s.period_cost ;
+    uint128 balance = _get_balance( s.token_root );
+
+    if( cost >= balance ){
+      _transfer( s.token_root, cost, token_wallet );
+      sub.service = s;
+      IRPSProvider( sub.provider ).subscribe(
+                                             s_owner,
+                                             tvm.pubkey(),
+                                             sub_id,
+                                             sub.serv_id,
+                                             sub.periods
+                                              );
+    } else {
+      _callbackSubscribe( sub,
+                          RPSBase.Status.ErrorNotEnoughBalance );
+    }
+  }
+
+  function _callbackSubscribe( Subscription sub, RPSBase.Status status )
+    internal pure
+  {
+    sub.status = status;
+    if( sub.callback.value != 0 ){
+      IRPSCallback( sub.callback ).
+        subscribeStatus %{sol:fwd} (
+                        address(this),
+                        sub.provider,
+                        sub.serv_id,
+                        sub.periods,
+                        status);
+    }
+  }
+  
+  function callbackSubscribe( uint64 sub_id,
+                              RPSBase.Status status) public override
+  {
+    Subscription sub = _get_subscription( sub_id );
+    _callbackSubscribe( sub, status );
+  }
+
+}
+

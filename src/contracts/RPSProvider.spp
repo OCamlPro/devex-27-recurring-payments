@@ -1,0 +1,112 @@
+/*
+  Implementation of contract RPSProvider
+ */
+
+pragma ton-solidity >= 0.32.0;
+
+pragma AbiHeader expire;
+pragma AbiHeader pubkey;
+
+import "../libraries/RPSBase.sol";
+import "./MultiWallets.spp";
+import "../interfaces/IRPSProvider.sol";
+import "../interfaces/IRPSUser.sol";
+import "../interfaces/IRPSCallback.sol";
+import "./RPSUser.spp";
+
+contract RPSProvider is
+IRPSProvider
+, MultiWallets
+{
+
+  address static s_root ;
+
+  mapping(uint32 => RPSBase.Service) g_services ;
+  uint32 g_service_counter;
+  TvmCell g_user_code;
+
+  
+  constructor( TvmCell user_code ) public {
+    require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
+    tvm.accept();
+
+    g_user_code = user_code ;
+    _MultiWallets();
+  }
+
+  function newService( RPSBase.Service s ) public
+  {
+    require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
+    g_services[ g_service_counter ] = s;
+    g_service_counter++;
+
+    _need_wallet( s.token_root );
+  }
+
+  function listServices() public view responsible
+    returns ( mapping( uint32 => RPSBase.Service ) services )
+  {
+    services = g_services ;
+  }
+
+  function prepareSubscribe(
+                            uint64 sub_id,
+                            uint32 service )
+    public override
+  {
+    optional(RPSBase.Service) s_opt = g_services.fetch( service );
+    if( s_opt.hasValue() ){
+      RPSBase.Service s = s_opt.get();
+      address token_wallet = _get_wallet( s.token_root ) ;
+      if( token_wallet.value == 0 ){
+        IRPSUser( msg.sender ).
+          callbackSubscribe %{sol:fwd}
+        (
+         sub_id, 
+         RPSBase.Status.ErrorServiceNotReady
+           );
+      } else {
+        IRPSUser( msg.sender ).
+          continueSubscribe %{sol:fwd} ( sub_id, s, token_wallet );
+      }
+    } else {
+      IRPSUser( msg.sender ).
+        callbackSubscribe %{sol:fwd} ( sub_id, 
+                         RPSBase.Status.ErrorNoSuchService);
+    }
+  }
+
+  function subscribe(
+                     address owner,
+                     uint256 pubkey,
+                     uint64 sub_id,
+                     uint32 serv_id,
+                     uint8 periods ) public override
+  {
+    address addr = _computeRPSUserAddress( s_root, owner, pubkey );
+    require ( addr == msg.sender, RPSBase.EXN_AUTH_FAILED );
+    // TODO
+    sub_id ; serv_id ; periods ;
+  }
+
+  function _computeRPSUserAddress( address root,
+                       address owner,
+                                   uint256 pubkey ) internal view
+    returns (address addr )
+  {
+    TvmCell stateInit = tvm.buildStateInit({
+      contr: RPSUser,
+          varInit: {
+            s_root : root,
+            s_owner : owner,
+            },
+          pubkey: pubkey,
+          code: g_user_code
+        });
+
+    addr = address( tvm.hash( stateInit ) );
+  }
+
+
+}
+

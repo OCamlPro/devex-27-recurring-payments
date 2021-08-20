@@ -1,0 +1,126 @@
+/*
+  Implementation of contract RPSProvider
+ */
+
+pragma ton-solidity >= 0.32.0;
+
+pragma AbiHeader expire;
+pragma AbiHeader pubkey;
+
+import "../interfaces/IMultiWallets.sol";
+import "../broxus-token-contracts/interfaces/ITONTokenWallet.sol";
+import "../broxus-token-contracts/interfaces/IRootTokenContract.sol";
+import "../broxus-token-contracts/interfaces/IExpectedWalletAddressCallback.sol";
+import "../broxus-token-contracts/interfaces/ITokensReceivedCallback.sol";
+import "../broxus-token-contracts/interfaces/ITokensBouncedCallback.sol";
+
+
+abstract contract MultiWallets is
+  IMultiWallets,
+  IExpectedWalletAddressCallback,
+  ITokensReceivedCallback,
+  ITokensBouncedCallback
+{
+
+  uint64 constant EXN_AUTH_FAILED = 100 ;
+  uint128 constant DEPLOY_EMPTY_WALLET_COST = 0.1 ton;
+
+  mapping ( address => address ) g_token_wallets ; // root -> wallet
+  mapping ( address => uint128 ) g_token_balances ; // root -> balance
+  mapping ( address => address ) g_token_roots ; // wallet -> root
+  
+  function _MultiWallets( ) internal
+  {
+    g_token_wallets[ address(0) ] = address( this );
+  }
+
+  function _need_wallet( address token_root ) internal
+  {
+
+    if( ! g_token_balances.exists( token_root ) ){
+
+      IRootTokenContract( token_root ).
+        deployEmptyWallet(
+                          DEPLOY_EMPTY_WALLET_COST, 0,
+                          address(this), address(this) );
+      IRootTokenContract( token_root ).
+        sendExpectedWalletAddress( 0, address(this), address(this) );
+
+      g_token_balances[ token_root ] = 0 ;
+
+    }
+  }
+
+  function expectedWalletAddressCallback(address wallet
+                                         , uint256 // wallet_public_key
+                                         , address // owner_address
+                                         )
+    public override {
+    require( g_token_balances.exists( msg.sender ), EXN_AUTH_FAILED );
+    g_token_wallets [ msg.sender ] = wallet ;
+    g_token_roots [ wallet ] = msg.sender ;
+    ITONTokenWallet( wallet ).setReceiveCallback( address(this), true );
+    ITONTokenWallet( wallet ).setBouncedCallback( address(this) );
+  }
+
+  function tokensReceivedCallback(
+                                  address // token_wallet
+                                  , address token_root
+                                  , uint128 amount
+                                  , uint256 // sender_public_key
+                                  , address // sender_address
+                                  , address // sender_wallet
+                                  , address // original_gas_to
+                                  , uint128 // updated_balance
+                                  , TvmCell // payload
+  ) public override {
+    require( g_token_roots.exists( msg.sender ) , EXN_AUTH_FAILED );
+    g_token_balances[ token_root ] += amount ;
+  }
+
+  function tokensBouncedCallback(
+                                 address // token_wallet
+                                 , address token_root
+                                 , uint128 amount
+                                 , address // sender_address
+                                 , uint128 // current_balance
+  ) public override {
+    require( g_token_roots.exists( msg.sender ) , EXN_AUTH_FAILED );
+    g_token_balances[ token_root ] += amount ;
+  }
+
+  function getWallet( address token_root ) public view responsible
+    returns ( address wallet )
+  {
+    wallet = g_token_wallets [ token_root ];
+  }
+
+  function _get_wallet( address token_root ) internal view returns ( address wallet )
+  {
+    wallet = g_token_wallets [ token_root ];
+  }
+  
+  function _get_balance( address token_root ) internal view returns ( uint128 balance  )
+  {
+    if( token_root.value == 0 ){
+      balance = address(this).balance ;
+      if( balance > 2 ton ){ // TODO: use a constant
+        balance = balance - 1 ton ;
+      } else {
+        balance = 0 ;
+      }
+    } else {
+      balance = g_token_balances [ token_root ];
+    }
+  }
+
+function _transfer( address // token_root
+                      , uint128 // amount
+                      , address // dest_wallet
+                      ) internal pure
+  {
+    // TODO
+  }
+  
+}
+
