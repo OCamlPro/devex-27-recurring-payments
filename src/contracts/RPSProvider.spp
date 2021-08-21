@@ -1,5 +1,14 @@
 /*
   Implementation of contract RPSProvider
+  TODO:
+  * emit events
+  * allow user to pause
+  * allow user to unpause
+  * allow user to stop
+  * allow provider to stop new subscriptions on a service
+  * allow provider to stop new subscriptions on all services
+  * add subscription_cost
+  * add max_periods
  */
 
 pragma ton-solidity >= 0.32.0;
@@ -17,61 +26,103 @@ import "./RPSUser.spp";
 contract RPSProvider is
 IRPSProvider
 , MultiWallets
-{
+{  
+  struct ProviderService {
+    uint32 serv_id ;
+    RPSBase.Service service ;
+  }
+  
+  struct ProviderSubscription {
+    uint64 sub_pid;
+    uint64 sub_uid ;
+    uint32 serv_id ;
+    uint8 periods ;
+    address user;
+    RPSBase.Status status;
+    uint64 sub_date;
+  }
+
+  uint128 constant CALLBACK_COST = 1 ton;
 
   address static s_root ;
-
-  mapping(uint32 => RPSBase.Service) g_services ;
+  address static s_owner ;
+  
+  mapping(uint32 => ProviderService) g_services ; // serv_id => serv
+  mapping(uint32 => address) g_callbacks ; // serv_id => callback
   uint32 g_service_counter;
+
+  mapping(uint64 => ProviderSubscription) g_subscriptions ; // sub_pid => sub
+  uint64 g_subscription_counter;
+
+  mapping(address => uint32) g_subscribers; // subscriber => nbr_subscriptions
+  mapping(address => uint128) g_token_claimed; // token => claimed balance
+
   TvmCell g_user_code;
 
-  
-  constructor( TvmCell user_code ) public {
-    require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
+  function _check_owner() view
+  {
+    require(
+            msg.sender.value != 0 ?
+            msg.sender == s_owner :
+            msg.pubkey() == tvm.pubkey(),
+            RPSBase.EXN_AUTH_FAILED );
     tvm.accept();
+  }
+
+  constructor( TvmCell user_code ) public {
+    _check_owner();
 
     g_user_code = user_code ;
     _MultiWallets();
   }
 
-  function newService( RPSBase.Service s ) public
+  function newService( RPSBase.Service service, address callback ) public
   {
     require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
-    g_services[ g_service_counter ] = s;
+    uint32 serv_id = g_service_counter ;
     g_service_counter++;
+    
+    ProviderService serv =
+      ProviderService(
+                      serv_id,
+                      service
+                      );
+    g_services[ serv_id ] = serv ;
+    g_callbacks[ serv_id ] = callback ;
 
-    _need_wallet( s.token_root );
+    _need_wallet( service.token_root );
   }
 
   function listServices() public view responsible
-    returns ( mapping( uint32 => RPSBase.Service ) services )
+    returns ( mapping( uint32 => ProviderService ) services )
   {
     services = g_services ;
   }
 
   function prepareSubscribe(
-                            uint64 sub_id,
-                            uint32 service )
+                            uint64 sub_uid,
+                            uint32 serv_id )
     public override
   {
-    optional(RPSBase.Service) s_opt = g_services.fetch( service );
+    optional(ProviderService) s_opt = g_services.fetch( serv_id );
     if( s_opt.hasValue() ){
-      RPSBase.Service s = s_opt.get();
-      address token_wallet = _get_wallet( s.token_root ) ;
+      ProviderService serv = s_opt.get();
+      RPSBase.Service service = serv.service;
+      address token_wallet = _get_wallet( service.token_root ) ;
       if( token_wallet.value == 0 ){
         IRPSUser( msg.sender ).
           callbackSubscribe %{sol:fwd}
         (
-         sub_id, 
+         sub_uid, 
          RPSBase.Status.ErrorServiceNotReady
            );
       } else {
         IRPSUser( msg.sender ).
-          continueSubscribe %{sol:fwd} ( sub_id, s, token_wallet );
+          continueSubscribe %{sol:fwd} ( sub_uid, service, token_wallet );
       }
     } else {
       IRPSUser( msg.sender ).
-        callbackSubscribe %{sol:fwd} ( sub_id, 
+        callbackSubscribe %{sol:fwd} ( sub_uid, 
                          RPSBase.Status.ErrorNoSuchService);
     }
   }
@@ -79,18 +130,58 @@ IRPSProvider
   function subscribe(
                      address owner,
                      uint256 pubkey,
-                     uint64 sub_id,
+                     uint64 sub_uid,
                      uint32 serv_id,
                      uint8 periods ) public override
   {
-    address addr = _computeRPSUserAddress( s_root, owner, pubkey );
-    require ( addr == msg.sender, RPSBase.EXN_AUTH_FAILED );
-    // TODO
-    sub_id ; serv_id ; periods ;
+    address user = msg.sender ;
+    optional( uint32 ) nbr_subscriptions_opt = g_subscribers.fetch( user );
+    if( ! nbr_subscriptions_opt.hasValue() ){
+      address addr = _computeRPSUserAddress( s_root, owner, pubkey );
+      require ( addr == user, RPSBase.EXN_AUTH_FAILED );
+      g_subscribers[ user ] = 1;
+    } else {
+      g_subscribers[ user ] = nbr_subscriptions_opt.get() + 1 ;
+    }
+
+    uint64 sub_date = now;
+    RPSBase.Status status = RPSBase.Status.Subscribed;
+    uint64 sub_pid = g_subscription_counter;
+    g_subscription_counter++;
+
+    ProviderSubscription sub =
+      ProviderSubscription(
+                           sub_pid ,
+                           sub_uid ,
+                           serv_id ,
+                           periods ,
+                           user ,
+                           status,
+                           sub_date
+                           );
+    ProviderService serv = g_services[ serv_id ];
+    RPSBase.Service service = serv.service;
+
+    g_token_claimed[ service.token_root ] += service.period_cost ;
+    _callbackSubscribe( sub, status );
+    RPSUser( user ).confirmSubscribe%{sol:fwd}( sub_uid, sub_pid, sub_date );
+  }
+
+  function _callbackSubscribe( ProviderSubscription sub, RPSBase.Status status )
+    internal 
+  {
+    sub.status = status;
+    g_subscriptions[ sub.sub_pid ] = sub;
+    address callback = g_callbacks[ sub.serv_id ];
+    if( callback.value != 0 ){
+      IRPSCallback( callback ).subscribeStatus%{sol:gas:CALLBACK_COST}
+      ( sub.user, address(this), sub.sub_pid, sub.serv_id,
+        sub.periods, status );
+    }
   }
 
   function _computeRPSUserAddress( address root,
-                       address owner,
+                                   address owner,
                                    uint256 pubkey ) internal view
     returns (address addr )
   {
@@ -107,6 +198,59 @@ IRPSProvider
     addr = address( tvm.hash( stateInit ) );
   }
 
+  function claimSubscriptions() public
+    returns ( mapping( address => uint128 ) claimed )
+  {
+    _check_owner();
 
+    uint64 date = now ;
+    optional( uint64, ProviderSubscription ) opt =
+      g_subscriptions.min();
+    while( opt.hasValue() ){
+      ( uint64 sub_pid, ProviderSubscription sub ) = opt.get();
+
+      if( sub.status == RPSBase.Status.Subscribed ){
+        ProviderService serv = g_services[ sub.serv_id ];
+        RPSBase.Service service = serv.service;
+        bool expired = false;
+        bool modified = false;
+        while( !expired && sub.sub_date + service.period < date ){
+          sub.sub_date += service.period;
+          sub.periods --;
+          modified = true;
+          if( sub.periods > 0 ){
+            g_token_claimed[ service.token_root ] += service.period_cost ;
+          } else {
+            expired = true ;
+          }
+        }
+
+        if( expired ){
+          delete g_subscriptions[ sub_pid ];
+          uint32 nbr_subscriptions = g_subscribers[ sub.user ];
+          if( nbr_subscriptions == 1 ){
+            delete g_subscribers[ sub.user ];
+          } else {
+            g_subscribers[ sub.user ] = nbr_subscriptions - 1;
+          }
+        } else
+          if( modified ){
+            g_subscriptions[ sub_pid ] = sub;
+          }
+      }
+
+      opt = g_subscriptions.next( sub_pid );
+    }
+    claimed = g_token_claimed;
+  }
+
+  function transferClaimed( address token_root, address dest_wallet ) public
+  {
+    _check_owner();
+    uint128 amount = g_token_claimed[ token_root ];
+    _transfer( token_root, amount, dest_wallet );
+    delete g_token_claimed[ token_root ] ;
+  }
+  
 }
 

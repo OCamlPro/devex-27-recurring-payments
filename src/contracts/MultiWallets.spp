@@ -21,14 +21,18 @@ abstract contract MultiWallets is
   ITokensReceivedCallback,
   ITokensBouncedCallback
 {
+  uint64 constant EXN_AUTH_FAILED = 150 ;
+  uint64 constant EXN_BALANCE_TOO_LOW_FOR_TRANSFER = 151;
 
-  uint64 constant EXN_AUTH_FAILED = 100 ;
+  event MultiWalletsError(uint64 error);
+  
   uint128 constant DEPLOY_EMPTY_WALLET_COST = 0.1 ton;
+  uint128 constant TRANSFER_COST = 0.1 ton;
 
   mapping ( address => address ) g_token_wallets ; // root -> wallet
   mapping ( address => uint128 ) g_token_balances ; // root -> balance
   mapping ( address => address ) g_token_roots ; // wallet -> root
-  
+
   function _MultiWallets( ) internal
   {
     g_token_wallets[ address(0) ] = address( this );
@@ -114,12 +118,30 @@ abstract contract MultiWallets is
     }
   }
 
-function _transfer( address // token_root
-                      , uint128 // amount
-                      , address // dest_wallet
-                      ) internal pure
+  function _transfer( address token_root
+                    , uint128 amount
+                    , address dest_wallet
+                    ) internal 
   {
-    // TODO
+    if( amount > 0 ){
+
+      uint128 balance = _get_balance( token_root );
+
+      if( amount > balance ){
+        emit MultiWalletsError( EXN_BALANCE_TOO_LOW_FOR_TRANSFER );
+      } else {
+        if( token_root.value == 0 ){
+          dest_wallet.transfer( amount, false, 0 );
+        } else {
+          TvmCell empty;
+          address wallet = g_token_wallets[ token_root ];
+          ITONTokenWallet( wallet ).
+            transfer( dest_wallet, amount, TRANSFER_COST,
+                      address(this), true, empty  );
+          g_token_balances[ token_root ] = balance - amount ;
+        }
+      }
+    }
   }
   
 }

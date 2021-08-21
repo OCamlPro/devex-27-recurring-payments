@@ -8,7 +8,8 @@ interface IRPSCallback {
   
   function subscribeStatus( address user,
                             address provider,
-                            uint32 service,
+                            uint64 sub_id, // either sub_pid or sub_uid
+                            uint32 serv_id,
                             uint8 periods,
                             RPSBase.Status status
                             ) external ;

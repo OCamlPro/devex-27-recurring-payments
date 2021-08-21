@@ -20,17 +20,19 @@ IRPSUser
   address static s_root ;
   address static s_owner ;
 
-  struct Subscription {
+  struct UserSubscription {
+    uint64 sub_uid ;
     address provider ;
     uint32 serv_id ;
     uint8 periods ;
     address callback ;
-    uint64 sub_id ;
     RPSBase.Service service ;
     RPSBase.Status status ;
+    uint64 sub_pid ;
+    uint64 sub_date ;
   }
 
-  mapping ( uint64 => Subscription ) g_subscriptions ;
+  mapping ( uint64 => UserSubscription ) g_subscriptions ;
   uint64 g_subscription_counter ;
 
   function _check_owner() view
@@ -42,11 +44,11 @@ IRPSUser
             RPSBase.EXN_AUTH_FAILED );
     tvm.accept();
   }
-  
+
   constructor( ) public {
     _check_owner();
     tvm.accept();
-    
+
     _MultiWallets();
   }
 
@@ -61,50 +63,52 @@ IRPSUser
                       uint8 periods,
                       address callback ) public 
   {
+    require( periods > 0 );
     _check_owner();
 
     RPSBase.Service empty_service;
-    Subscription sub = Subscription(
+    UserSubscription sub = UserSubscription(
+                                           g_subscription_counter,
                                            provider,
                                            serv_id,
                                            periods,
                                            callback,
-                                           g_subscription_counter,
                                            empty_service,
-                                           RPSBase.Status.Pending
+                                           RPSBase.Status.Pending,
+                                           0, // sub_pid
+                                           0  // sub_date
                                            );
     g_subscriptions [ g_subscription_counter ] = sub ;
     g_subscription_counter++;
 
     IRPSProvider( provider ).
-      prepareSubscribe %{sol:gas:1 ton} ( sub.sub_id, serv_id );
+      prepareSubscribe %{sol:gas:1 ton} ( sub.sub_uid, serv_id );
   }
 
-  function _get_subscription( uint64 sub_id )
-    internal inline view returns ( Subscription sub )
+  function _get_subscription( uint64 sub_uid )
+    internal inline view returns ( UserSubscription sub )
   {
-    optional ( Subscription ) sub_opt = g_subscriptions.fetch(  sub_id );
+    optional ( UserSubscription ) sub_opt = g_subscriptions.fetch(  sub_uid );
     require( sub_opt.hasValue(), RPSBase.EXN_AUTH_FAILED );
     sub = sub_opt.get() ;
     require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
   }
 
-  function continueSubscribe( uint64 sub_id,
+  function continueSubscribe( uint64 sub_uid,
                               RPSBase.Service s,
                               address token_wallet ) public override
   {
-    Subscription sub = _get_subscription( sub_id );
-    // TODO: check max periods
+    UserSubscription sub = _get_subscription( sub_uid );
     uint128 cost = sub.periods * s.period_cost ;
     uint128 balance = _get_balance( s.token_root );
 
     if( cost >= balance ){
       _transfer( s.token_root, cost, token_wallet );
-      sub.service = s;
+      g_subscriptions[ sub.sub_uid ].service = s;
       IRPSProvider( sub.provider ).subscribe(
                                              s_owner,
                                              tvm.pubkey(),
-                                             sub_id,
+                                             sub_uid,
                                              sub.serv_id,
                                              sub.periods
                                               );
@@ -114,26 +118,39 @@ IRPSUser
     }
   }
 
-  function _callbackSubscribe( Subscription sub, RPSBase.Status status )
-    internal pure
+  function _callbackSubscribe( UserSubscription sub, RPSBase.Status status )
+    internal 
   {
     sub.status = status;
+    g_subscriptions[ sub.sub_uid ] = sub ;
     if( sub.callback.value != 0 ){
       IRPSCallback( sub.callback ).
         subscribeStatus %{sol:fwd} (
                         address(this),
                         sub.provider,
+                        sub.sub_uid,
                         sub.serv_id,
                         sub.periods,
                         status);
     }
   }
   
-  function callbackSubscribe( uint64 sub_id,
+  function callbackSubscribe( uint64 sub_uid,
                               RPSBase.Status status) public override
   {
-    Subscription sub = _get_subscription( sub_id );
+    UserSubscription sub = _get_subscription( sub_uid );
     _callbackSubscribe( sub, status );
+  }
+
+  function confirmSubscribe( uint64 sub_uid,
+                             uint64 sub_pid,
+                             uint64 sub_date
+                             ) public 
+  {
+    UserSubscription sub = _get_subscription( sub_uid );
+    sub.sub_pid = sub_pid ;
+    sub.sub_date = sub_date ;
+    _callbackSubscribe( sub, RPSBase.Status.Subscribed );
   }
 
 }
