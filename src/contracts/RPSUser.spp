@@ -91,7 +91,6 @@ IRPSUser
     optional ( UserSubscription ) sub_opt = g_subscriptions.fetch(  sub_uid );
     require( sub_opt.hasValue(), RPSBase.EXN_AUTH_FAILED );
     sub = sub_opt.get() ;
-    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
   }
 
   function continueSubscribe( uint64 sub_uid,
@@ -99,6 +98,8 @@ IRPSUser
                               address token_wallet ) public override
   {
     UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+
     uint128 cost = sub.periods * s.period_cost ;
     uint128 balance = _get_balance( s.token_root );
 
@@ -131,7 +132,8 @@ IRPSUser
                         sub.sub_uid,
                         sub.serv_id,
                         sub.periods,
-                        status);
+                        status,
+                        sub.sub_date);
     }
   }
   
@@ -139,6 +141,8 @@ IRPSUser
                               RPSBase.Status status) public override
   {
     UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+
     _callbackSubscribe( sub, status );
   }
 
@@ -148,10 +152,27 @@ IRPSUser
                              ) public 
   {
     UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+
     sub.sub_pid = sub_pid ;
     sub.sub_date = sub_date ;
     _callbackSubscribe( sub, RPSBase.Status.Subscribed );
   }
 
+  function stopSubscribe( uint64 sub_uid ) public view {
+    _check_owner();
+    UserSubscription sub = _get_subscription( sub_uid );
+    IRPSProvider( sub.provider ).
+      stopSubscribe( sub_uid, sub.sub_pid );
+  }
+
+  function stoppedSubscribe( uint64 sub_uid, uint8 stopped_periods ) public
+  {
+    UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+    sub.periods -= stopped_periods;
+    _callbackSubscribe( sub, RPSBase.Status.Stopped);
+  }
+  
 }
 

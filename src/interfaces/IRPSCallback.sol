@@ -11,6 +11,7 @@ interface IRPSCallback {
                             uint64 sub_id, // either sub_pid or sub_uid
                             uint32 serv_id,
                             uint8 periods,
-                            RPSBase.Status status
+                            RPSBase.Status status,
+                            uint64 sub_date
                             ) external ;
 }

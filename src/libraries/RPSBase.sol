@@ -9,9 +9,11 @@ library RPSBase {
   enum Status {
                Pending,
                Subscribed,
+               Stopped,
                ErrorNoSuchService,
                ErrorNotEnoughBalance,
-               ErrorServiceNotReady
+               ErrorServiceNotReady,
+               ErrorSubscriptionFinished
   }
 
   struct Service {

@@ -4,11 +4,16 @@
   * emit events
   * allow user to pause
   * allow user to unpause
-  * allow user to stop
   * allow provider to stop new subscriptions on a service
   * allow provider to stop new subscriptions on all services
   * add subscription_cost
   * add max_periods
+ */
+
+/* Invariant:
+ * * the sub.sub_date is the beginning of the last claimed period. The next
+ *   unclaimed period is sub.sub_date + service.period
+ * * periods is the number of unclaimed periods minus one
  */
 
 pragma ton-solidity >= 0.32.0;
@@ -170,13 +175,12 @@ IRPSProvider
   function _callbackSubscribe( ProviderSubscription sub, RPSBase.Status status )
     internal 
   {
-    sub.status = status;
     g_subscriptions[ sub.sub_pid ] = sub;
     address callback = g_callbacks[ sub.serv_id ];
     if( callback.value != 0 ){
       IRPSCallback( callback ).subscribeStatus%{sol:gas:CALLBACK_COST}
       ( sub.user, address(this), sub.sub_pid, sub.serv_id,
-        sub.periods, status );
+        sub.periods, status, sub.sub_date );
     }
   }
 
@@ -198,47 +202,52 @@ IRPSProvider
     addr = address( tvm.hash( stateInit ) );
   }
 
+  function _updateSubscription( ProviderSubscription sub )
+    internal returns ( ProviderSubscription ) {
+    if( sub.status == RPSBase.Status.Subscribed ){
+      uint64 date = now ;
+      ProviderService serv = g_services[ sub.serv_id ];
+      RPSBase.Service service = serv.service;
+      bool expired = false;
+      bool modified = false;
+      while( !expired && sub.sub_date + service.period < date ){
+        sub.sub_date += service.period;
+        sub.periods --;
+        modified = true;
+        if( sub.periods > 0 ){
+          g_token_claimed[ service.token_root ] += service.period_cost ;
+        } else {
+          expired = true ;
+        }
+      }
+      
+      if( expired ){
+        delete g_subscriptions[ sub.sub_pid ];
+        uint32 nbr_subscriptions = g_subscribers[ sub.user ];
+        if( nbr_subscriptions == 1 ){
+          delete g_subscribers[ sub.user ];
+        } else {
+          g_subscribers[ sub.user ] = nbr_subscriptions - 1;
+        }
+      } else
+        if( modified ){
+          g_subscriptions[ sub.sub_pid ] = sub;
+        }
+    }
+    return sub;
+  }
+  
   function claimSubscriptions() public
     returns ( mapping( address => uint128 ) claimed )
   {
     _check_owner();
 
-    uint64 date = now ;
     optional( uint64, ProviderSubscription ) opt =
       g_subscriptions.min();
     while( opt.hasValue() ){
       ( uint64 sub_pid, ProviderSubscription sub ) = opt.get();
 
-      if( sub.status == RPSBase.Status.Subscribed ){
-        ProviderService serv = g_services[ sub.serv_id ];
-        RPSBase.Service service = serv.service;
-        bool expired = false;
-        bool modified = false;
-        while( !expired && sub.sub_date + service.period < date ){
-          sub.sub_date += service.period;
-          sub.periods --;
-          modified = true;
-          if( sub.periods > 0 ){
-            g_token_claimed[ service.token_root ] += service.period_cost ;
-          } else {
-            expired = true ;
-          }
-        }
-
-        if( expired ){
-          delete g_subscriptions[ sub_pid ];
-          uint32 nbr_subscriptions = g_subscribers[ sub.user ];
-          if( nbr_subscriptions == 1 ){
-            delete g_subscribers[ sub.user ];
-          } else {
-            g_subscribers[ sub.user ] = nbr_subscriptions - 1;
-          }
-        } else
-          if( modified ){
-            g_subscriptions[ sub_pid ] = sub;
-          }
-      }
-
+      _updateSubscription( sub );
       opt = g_subscriptions.next( sub_pid );
     }
     claimed = g_token_claimed;
@@ -251,6 +260,32 @@ IRPSProvider
     _transfer( token_root, amount, dest_wallet );
     delete g_token_claimed[ token_root ] ;
   }
-  
+
+  function stopSubscribe( uint64 sub_uid, uint64 sub_pid ) public override {
+    optional( ProviderSubscription ) sub_opt = g_subscriptions.fetch( sub_pid );
+    if( !sub_opt.hasValue() ){
+
+      RPSUser( msg.sender ).
+        callbackSubscribe %{sol:fwd}
+      ( sub_uid, RPSBase.Status.ErrorSubscriptionFinished );
+
+    } else {
+      ProviderSubscription sub = sub_opt.get();
+      require ( msg.sender == sub.user, RPSBase.EXN_AUTH_FAILED );
+      sub = _updateSubscription( sub );
+
+      uint8 stopped_periods = 0;
+      if( sub.periods > 1 ){
+        stopped_periods = sub.periods - 1;
+        sub.periods = 1;
+        // Stopped is sent, but status is still Subscribed
+        _callbackSubscribe( sub, RPSBase.Status.Stopped);
+      }
+      RPSUser( msg.sender ).
+      stoppedSubscribe%{sol:fwd}( sub_uid, stopped_periods);
+    }
+  }
+    
+
 }
 
