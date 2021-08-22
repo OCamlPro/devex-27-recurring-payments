@@ -6,7 +6,7 @@ interface IRPSProvider {
 
   function prepareSubscribe( uint64 sub_id,
                              uint32 serv_id
-                             ) external;
+                             ) external view;
 
   function subscribe(
                      address owner,
@@ -14,5 +14,8 @@ interface IRPSProvider {
                      uint64 sub_id,
                      uint32 serv_id,
                      uint8 periods ) external ;
+  
   function stopSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
+  function pauseSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
+  function unpauseSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
 }

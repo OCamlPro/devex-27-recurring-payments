@@ -2,8 +2,6 @@
   Implementation of contract RPSProvider
   TODO:
   * emit events
-  * allow user to pause
-  * allow user to unpause
   * allow provider to stop new subscriptions on a service
   * allow provider to stop new subscriptions on all services
   * add subscription_cost
@@ -47,11 +45,13 @@ IRPSProvider
     uint64 sub_date;
   }
 
-  uint128 constant CALLBACK_COST = 1 ton;
+  uint128 constant CALLBACK_COST = 0.8 ton;
+  uint128 constant CONSTRUCTOR_COST = 1 ton;
+  uint128 constant FUNCTION_COST = 0.1 ton ;
 
   address static s_root ;
   address static s_owner ;
-  
+
   mapping(uint32 => ProviderService) g_services ; // serv_id => serv
   mapping(uint32 => address) g_callbacks ; // serv_id => callback
   uint32 g_service_counter;
@@ -64,18 +64,19 @@ IRPSProvider
 
   TvmCell g_user_code;
 
-  function _check_owner() view
+  function _check_owner( uint128 min_balance ) view
   {
     require(
             msg.sender.value != 0 ?
             msg.sender == s_owner :
             msg.pubkey() == tvm.pubkey(),
             RPSBase.EXN_AUTH_FAILED );
+    require( address(this).balance >= min_balance, RPSBase.EXN_NOT_ENOUGH_GAS );
     tvm.accept();
   }
 
   constructor( TvmCell user_code ) public {
-    _check_owner();
+    _check_owner( CONSTRUCTOR_COST );
 
     g_user_code = user_code ;
     _MultiWallets();
@@ -83,7 +84,8 @@ IRPSProvider
 
   function newService( RPSBase.Service service, address callback ) public
   {
-    require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
+    _check_owner( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
+    
     uint32 serv_id = g_service_counter ;
     g_service_counter++;
     
@@ -107,7 +109,7 @@ IRPSProvider
   function prepareSubscribe(
                             uint64 sub_uid,
                             uint32 serv_id )
-    public override
+    public override view
   {
     optional(ProviderService) s_opt = g_services.fetch( serv_id );
     if( s_opt.hasValue() ){
@@ -240,8 +242,7 @@ IRPSProvider
   function claimSubscriptions() public
     returns ( mapping( address => uint128 ) claimed )
   {
-    _check_owner();
-
+    // _check_owner();
     optional( uint64, ProviderSubscription ) opt =
       g_subscriptions.min();
     while( opt.hasValue() ){
@@ -255,25 +256,33 @@ IRPSProvider
 
   function transferClaimed( address token_root, address dest_wallet ) public
   {
-    _check_owner();
+    _check_owner( FUNCTION_COST + TRANSFER_COST );
     uint128 amount = g_token_claimed[ token_root ];
     _transfer( token_root, amount, dest_wallet );
     delete g_token_claimed[ token_root ] ;
   }
 
-  function stopSubscribe( uint64 sub_uid, uint64 sub_pid ) public override {
+  function _get_subscription( uint64 sub_uid, uint64 sub_pid ) internal
+    returns ( bool found, ProviderSubscription sub ) {
     optional( ProviderSubscription ) sub_opt = g_subscriptions.fetch( sub_pid );
-    if( !sub_opt.hasValue() ){
+    found = sub_opt.hasValue() ;
 
-      RPSUser( msg.sender ).
-        callbackSubscribe %{sol:fwd}
-      ( sub_uid, RPSBase.Status.ErrorSubscriptionFinished );
-
-    } else {
-      ProviderSubscription sub = sub_opt.get();
+    if( found ){
+      sub = sub_opt.get();
       require ( msg.sender == sub.user, RPSBase.EXN_AUTH_FAILED );
       sub = _updateSubscription( sub );
+      found = ( sub.periods > 0 );
+    }
+    if( !found){
+      RPSUser( msg.sender ).callbackSubscribe %{sol:fwd}
+      ( sub_uid, RPSBase.Status.ErrorSubscriptionFinished );
+    }
+  }
 
+  function stopSubscribe( uint64 sub_uid, uint64 sub_pid ) public override {
+    (bool found, ProviderSubscription sub) =
+      _get_subscription( sub_uid, sub_pid );
+    if( found ){
       uint8 stopped_periods = 0;
       if( sub.periods > 1 ){
         stopped_periods = sub.periods - 1;
@@ -282,10 +291,43 @@ IRPSProvider
         _callbackSubscribe( sub, RPSBase.Status.Stopped);
       }
       RPSUser( msg.sender ).
-      stoppedSubscribe%{sol:fwd}( sub_uid, stopped_periods);
+        stoppedSubscribe%{sol:fwd}( sub_uid, sub.periods, sub.sub_date );
     }
   }
     
+  function pauseSubscribe( uint64 sub_uid, uint64 sub_pid ) public override {
+    (bool found, ProviderSubscription sub) =
+      _get_subscription( sub_uid, sub_pid );
+    if( found ){
+      if( sub.status == RPSBase.Status.Subscribed ){
+        sub.status = RPSBase.Status.Paused ;
+        sub.sub_date = now - sub.sub_date ; // consumed time
+        _callbackSubscribe( sub, sub.status );
+        RPSUser( msg.sender ).
+          pausedSubscribe( sub_uid, sub.periods, sub.sub_date );
+      } else {
+        RPSUser( msg.sender ).
+          callbackSubscribe( sub_uid, RPSBase.Status.ErrorAlreadyPaused );
+      }
+    }
+  }
+
+  function unpauseSubscribe( uint64 sub_uid, uint64 sub_pid ) public override {
+    (bool found, ProviderSubscription sub) =
+      _get_subscription( sub_uid, sub_pid );
+    if( found ){
+      if( sub.status == RPSBase.Status.Paused ){
+        sub.status = RPSBase.Status.Subscribed ;
+        sub.sub_date = now - sub.sub_date ;
+        _callbackSubscribe( sub, RPSBase.Status.Unpaused );
+        RPSUser( msg.sender ).
+          pausedSubscribe( sub_uid, sub.periods, sub.sub_date );
+      } else {
+        RPSUser( msg.sender ).
+          callbackSubscribe( sub_uid, RPSBase.Status.ErrorNotPaused );
+      }
+    }
+  }
 
 }
 

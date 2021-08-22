@@ -9,17 +9,83 @@ pragma AbiHeader pubkey;
 
 import "../libraries/RPSBase.sol";
 import "../interfaces/IRPSRoot.sol";
+import "./RPSUser.spp";
+import "./RPSProvider.spp";
 
 contract RPSRoot is IRPSRoot {
 
-  uint8 g_nvals ;                      // required number of ...
-  mapping(uint256 => uint8) g_vals ;   // pubkey -> value_index
+  uint128 constant MINIMAL_CREDIT = 1 ton ;
+  uint128 constant FUNCTION_COST = 0.1 ton ;
+  uint128 constant DEPLOY_PROVIDER_COST = 2 ton ;
+  uint128 constant DEPLOY_USER_COST = 2 ton ;
 
+  uint32 constant NEED_PROVIDER_CODE = 1 << 0;
+  uint32 constant NEED_USER_CODE = 1 << 0;
+  
+  TvmCell g_provider_code ;
+  TvmCell g_user_code ;
+  uint32 need_init = NEED_PROVIDER_CODE | NEED_USER_CODE ;
+  mapping (uint256 => uint128) g_balances ;
+  
   constructor( ) public {
     require( msg.pubkey() == tvm.pubkey(), RPSBase.EXN_AUTH_FAILED );
     tvm.accept();
-    // TODO
-    g_vals[ 0 ] = 1;
+  }
+
+  function credit( uint256 pubkey ) public
+  {
+    require( msg.value > MINIMAL_CREDIT, RPSBase.EXN_NOT_ENOUGH_GAS );
+    g_balances[ pubkey ] = msg.value - FUNCTION_COST;
+  }
+
+  function deployProvider() public view returns ( address addr )
+  {
+    require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    if( msg.sender.value == 0 ){
+      uint128 balance = g_balances[ msg.pubkey() ];
+      require( balance > FUNCTION_COST + DEPLOY_PROVIDER_COST,
+               RPSBase.EXN_NOT_ENOUGH_GAS );
+      tvm.accept();
+    } else {
+      require( msg.value > FUNCTION_COST + DEPLOY_PROVIDER_COST,
+               RPSBase.EXN_NOT_ENOUGH_GAS );
+    }
+
+    addr = new RPSProvider{
+    value: DEPLOY_PROVIDER_COST,
+    varInit: {
+      s_owner: msg.sender ,
+      s_root: address(this) 
+    },
+    pubkey: msg.pubkey() ,
+    code: g_provider_code
+    }( g_user_code );
+    
+  }
+
+  function deployUser() public view returns ( address addr )
+  {
+    require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    if( msg.sender.value == 0 ){
+      uint128 balance = g_balances[ msg.pubkey() ];
+      require( balance > FUNCTION_COST + DEPLOY_USER_COST,
+               RPSBase.EXN_NOT_ENOUGH_GAS );
+      tvm.accept();
+    } else {
+      require( msg.value > FUNCTION_COST + DEPLOY_USER_COST,
+               RPSBase.EXN_NOT_ENOUGH_GAS );
+    }
+
+    addr = new RPSUser{
+    value: DEPLOY_USER_COST,
+    varInit: {
+      s_owner: msg.sender ,
+      s_root: address(this) 
+    },
+    pubkey: msg.pubkey() ,
+    code: g_user_code
+    }( );
+    
   }
 
 }

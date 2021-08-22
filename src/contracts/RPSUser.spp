@@ -17,9 +17,6 @@ contract RPSUser is
 IRPSUser
 , MultiWallets
 {
-  address static s_root ;
-  address static s_owner ;
-
   struct UserSubscription {
     uint64 sub_uid ;
     address provider ;
@@ -32,29 +29,39 @@ IRPSUser
     uint64 sub_date ;
   }
 
+  uint128 constant PREPARE_SUBSCRIBE_COST = 1 ton;
+  uint128 constant STOP_SUBSCRIBE_COST = 1 ton;
+  uint128 constant PAUSE_SUBSCRIBE_COST = 1 ton;
+  uint128 constant UNPAUSE_SUBSCRIBE_COST = 1 ton;
+  uint128 constant CONSTRUCTOR_COST = 1 ton;
+  uint128 constant FUNCTION_COST = 0.1 ton ;
+  
+  address static s_root ;
+  address static s_owner ;
+
   mapping ( uint64 => UserSubscription ) g_subscriptions ;
   uint64 g_subscription_counter ;
 
-  function _check_owner() view
+  function _check_owner( uint128 min_balance ) view
   {
     require(
             msg.sender.value != 0 ?
             msg.sender == s_owner :
             msg.pubkey() == tvm.pubkey(),
             RPSBase.EXN_AUTH_FAILED );
+    require( address(this).balance >= min_balance, RPSBase.EXN_NOT_ENOUGH_GAS );
     tvm.accept();
   }
 
   constructor( ) public {
-    _check_owner();
-    tvm.accept();
+    _check_owner( FUNCTION_COST );
 
     _MultiWallets();
   }
 
   function NeedWallet ( address token_root ) public
   {
-    _check_owner();
+    _check_owner( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
     _need_wallet( token_root );
   }
 
@@ -64,7 +71,7 @@ IRPSUser
                       address callback ) public 
   {
     require( periods > 0 );
-    _check_owner();
+    _check_owner( FUNCTION_COST + PREPARE_SUBSCRIBE_COST );
 
     RPSBase.Service empty_service;
     UserSubscription sub = UserSubscription(
@@ -82,7 +89,7 @@ IRPSUser
     g_subscription_counter++;
 
     IRPSProvider( provider ).
-      prepareSubscribe %{sol:gas:1 ton} ( sub.sub_uid, serv_id );
+      prepareSubscribe %{sol:gas:PREPARE_SUBSCRIBE_COST} ( sub.sub_uid, serv_id );
   }
 
   function _get_subscription( uint64 sub_uid )
@@ -106,7 +113,7 @@ IRPSUser
     if( cost >= balance ){
       _transfer( s.token_root, cost, token_wallet );
       g_subscriptions[ sub.sub_uid ].service = s;
-      IRPSProvider( sub.provider ).subscribe(
+      IRPSProvider( sub.provider ).subscribe%{sol:fwd}(
                                              s_owner,
                                              tvm.pubkey(),
                                              sub_uid,
@@ -114,16 +121,15 @@ IRPSUser
                                              sub.periods
                                               );
     } else {
+      delete g_subscriptions[ sub_uid ];
       _callbackSubscribe( sub,
                           RPSBase.Status.ErrorNotEnoughBalance );
     }
   }
 
   function _callbackSubscribe( UserSubscription sub, RPSBase.Status status )
-    internal 
+    internal pure
   {
-    sub.status = status;
-    g_subscriptions[ sub.sub_uid ] = sub ;
     if( sub.callback.value != 0 ){
       IRPSCallback( sub.callback ).
         subscribeStatus %{sol:fwd} (
@@ -156,22 +162,74 @@ IRPSUser
 
     sub.sub_pid = sub_pid ;
     sub.sub_date = sub_date ;
-    _callbackSubscribe( sub, RPSBase.Status.Subscribed );
+    sub.status = RPSBase.Status.Subscribed;
+    g_subscriptions[ sub.sub_uid ] = sub ;
+    _callbackSubscribe( sub, sub.status );
   }
 
   function stopSubscribe( uint64 sub_uid ) public view {
-    _check_owner();
+    _check_owner( FUNCTION_COST + STOP_SUBSCRIBE_COST );
+    
     UserSubscription sub = _get_subscription( sub_uid );
     IRPSProvider( sub.provider ).
-      stopSubscribe( sub_uid, sub.sub_pid );
+      stopSubscribe%{sol:gas:STOP_SUBSCRIBE_COST}( sub_uid, sub.sub_pid );
   }
 
-  function stoppedSubscribe( uint64 sub_uid, uint8 stopped_periods ) public
+  function stoppedSubscribe( uint64 sub_uid,
+                             uint8 periods,
+                             uint64 sub_date ) public
   {
     UserSubscription sub = _get_subscription( sub_uid );
     require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
-    sub.periods -= stopped_periods;
+    
+    sub.periods = periods ;
+    sub.sub_date = sub_date ;
+    g_subscriptions[ sub.sub_uid ] = sub ;
     _callbackSubscribe( sub, RPSBase.Status.Stopped);
+  }
+
+  function pauseSubscribe( uint64 sub_uid ) public view {
+    _check_owner( FUNCTION_COST + PAUSE_SUBSCRIBE_COST );
+    
+    UserSubscription sub = _get_subscription( sub_uid );
+    IRPSProvider( sub.provider ).
+      pauseSubscribe%{sol:gas:PAUSE_SUBSCRIBE_COST}( sub_uid, sub.sub_pid );
+  }
+
+  function pausedSubscribe( uint64 sub_uid,
+                            uint8 periods,
+                            uint64 consumed ) public
+  {
+    UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+    
+    sub.status = RPSBase.Status.Paused ;
+    sub.sub_date = consumed ;
+    sub.periods = periods ;
+    g_subscriptions[ sub_uid ] = sub ;
+    _callbackSubscribe( sub, sub.status);
+  }
+
+  function unpauseSubscribe( uint64 sub_uid ) public view {
+    _check_owner( FUNCTION_COST + UNPAUSE_SUBSCRIBE_COST );
+    
+    UserSubscription sub = _get_subscription( sub_uid );
+    // TODO: check that subscription is currently paused
+    IRPSProvider( sub.provider ).
+      unpauseSubscribe%{sol:gas:UNPAUSE_SUBSCRIBE_COST}( sub_uid, sub.sub_pid );
+  }
+
+  function unpausedSubscribe( uint64 sub_uid,
+                              uint8 periods,
+                              uint64 sub_date ) public
+  {
+    UserSubscription sub = _get_subscription( sub_uid );
+    require( sub.provider == msg.sender, RPSBase.EXN_AUTH_FAILED );
+    sub.status = RPSBase.Status.Subscribed ;
+    sub.sub_date = sub_date ;
+    sub.periods = periods ;
+    g_subscriptions[ sub_uid ] = sub ;
+    _callbackSubscribe( sub, RPSBase.Status.Unpaused );
   }
   
 }

@@ -1,0 +1,18 @@
+all: build
+	ft contract import RPSDebot.sol
+
+build: RPSDebot.tvm
+
+RPSDebot.tvm: RPSDebot.sol lib/*.sol
+	ft contract build RPSDebot.sol -f
+
+deploy:
+	ft contract deploy RPSDebot --create debot_RPS -f
+	ft call debot_RPS setABI '{ "dabi": "%{hex:read:contract:abi:RPSDebot}" }'
+	ft call debot_RPS setIcon '{ "icon": "%{hex:string:data:image/png;base64,%{base64:file:RPSDebot.png}}" }'
+
+run:
+	ft client -- debot fetch %{account:address:debot_RPS}
+
+invoke:
+	ft client -- debot invoke %{account:address:debot_RPS} '%{account:in-message:debot_RPS:0:other_entry:{ "x": 3 \}}'
