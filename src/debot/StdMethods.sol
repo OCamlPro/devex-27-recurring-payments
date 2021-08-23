@@ -46,3 +46,8 @@
               AddressInput.ID,
             Menu.ID ];
   }
+
+  function onErrorRestart(uint32 sdkError, uint32 exitCode) public {
+    Terminal.print(0, format("Error: sdkError:{} exitCode:{}", sdkError, exitCode));
+    start();
+  }

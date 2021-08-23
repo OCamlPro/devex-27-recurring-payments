@@ -1,5 +1,7 @@
 pragma ton-solidity >=0.35.0;
 
+#include "cpp.sol"
+
 pragma AbiHeader expire;
 pragma AbiHeader time;
 pragma AbiHeader pubkey;
@@ -15,6 +17,9 @@ import "lib/Upgradable.sol";
 import "lib/Transferable.sol";
 
 import "Utility.sol";
+
+import "../contracts/RPSProvider.spp";
+import "../contracts/RPSRoot.spp";
 
 // Interface of the contract with which to interact
 
@@ -36,72 +41,123 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   uint8 constant debot_version_fix = 0 ;
   uint256 constant debot_support =
     0x66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f ;
-
+  
   string constant debot_hello =
     "Hi, I will help you work with RPS contracts";
 
-  function _mainMenu() internal
+  TvmCell g_provider_code ;
+  address g_provider ;
+
+  function _onHasPubkey() internal {
+    Terminal.print(0, "Getting provider code");
+    RPSRoot( g_root ).getProviderCode
+      MSGINT(onHasProviderCode,onErrorRestart) ();
+  }
+
+  function onHasProviderCode( TvmCell provider_code ) public
   {
-
-  }
-
-  /*
-
-  function _gotoMainMenu() public  {
-    Sdk.getBalance(tvm.functionId(printMainMenu), g_contract );
-  }
-
-  function printMainMenu( uint128 nanotokens ) public {
-    g_balance = nanotokens;
-    string str = format("This wallet has {} tokens on the balance.",
-                        tonsToStr(g_balance) );
-    Terminal.print(0, str);
-
-    MenuItem[] items;
-    items.push( MenuItem("Change Contract", "",
-                         tvm.functionId(askContractAddress)) );
-    items.push( MenuItem("Call Getter", "",
-                         tvm.functionId(callGetter)) );
-    Menu.select("What's next?", "", items);
-  }
-
-  function callGetter() public {
-    optional(uint256) pubkey = 0;
-    g_retryId = tvm.functionId(callGetter);
-    IContract(g_contract).getter{
-        abiVer: 2,
-        extMsg: true,
-        sign: true,
-        pubkey: pubkey,
-        time: uint64(now),
-        expire: 0,
-        callbackId: tvm.functionId(onSuccess),
-        onErrorId: tvm.functionId(onError)
-        }() ;
-  }
-
-  function onError(uint32 sdkError, uint32 exitCode) public {
-    exitCode = exitCode; sdkError = sdkError;
-    ConfirmInput.get(g_retryId,
-                     "Transaction failed. Do you want to retry transaction?");
-  }
-
-  function onSuccess(uint256 y) public {
-    Terminal.print(0, format("Contract returned {}", y) );
-    _gotoMainMenu () ;
+    Terminal.print(0, "Provider code received");
+    g_provider_code = provider_code ;
+    _onHasProviderCode();
   }
   
-  //
-  // Functions for external or internal invoke.
-  //
+  function _onHasProviderCode() internal
+  {
+    TvmCell stateInit = tvm.buildStateInit({
+      contr: RPSProvider,
+          varInit: {
+            s_root : g_root,
+            s_owner : address(0),
+            },
+          pubkey: g_pubkey,
+          code: g_provider_code
+        });
+    g_provider = address( tvm.hash( stateInit ) );
+    PRINTF("Checking status of provider contract: {}", g_provider);
+    Sdk.getAccountType(
+                       F_(checkProviderContractStatus),
+                       g_provider);
+  }
   
-  function other_entry(uint64 x) public pure returns (uint64 y) {
-    y = x ;
+  function checkProviderContractStatus(int8 acc_type) public {
+    PRINTF("Provider contract status: {}", acc_type);
+    if( acc_type == 1 ){
+      _mainMenu();
+    } else {
+      PRINTF("Contract {} not deployed yet.", g_provider);
+      _checkProviderBalanceBeforeDeploy();
+    }
   }
 
-  */  
+  function checkProviderBalanceBeforeDeploy() view public
+  {
+    _checkProviderBalanceBeforeDeploy();
+  }
   
-  %{subst:file:RootContractMethods.sol}
+  function _checkProviderBalanceBeforeDeploy() view internal
+  {
+    // Sdk.getBalance( F_( onProviderBalanceBeforeDeploy ),
+    //                g_provider );
+    RPSRoot( g_root ).getBalance
+      MSGINT(onProviderBalanceBeforeDeploy,onErrorRestart)
+      ( g_pubkey );
+  }
 
-  %{file:StdMethods.sol}
+  function onProviderBalanceBeforeDeploy( uint128 nanotokens ) public
+  {
+    PRINTF("Provider balance: {}", tonsToStr( nanotokens ));
+    if( nanotokens >= 1.8 ton){
+      _deployProviderContract();
+    } else {
+      MenuItem[] items;
+      items.push( MenuItem("Send 2 tons from multisig", "",
+                         _F(creditBalanceForDeploy)) );
+      items.push( MenuItem("Check balance again", "",
+                         _F(checkProviderBalanceBeforeDeploy)) );
+      Menu.select("What's next?", "", items);
+    }
+  }
+
+  function creditBalanceForDeploy() view public
+  {
+    TvmCell payload = tvm.encodeBody( IRPSRoot.creditBalance,
+                                      uint256(g_pubkey) );
+    IMultisig( g_multisig ).sendTransaction
+      MSGEXT(g_pubkey,checkProviderBalanceBeforeDeploy,onErrorRestart)
+    (g_root, 2 ton, true, 0, payload);
+  }
+
+  function _deployProviderContract() internal
+  {
+    PRINT("Deploying provider contract");
+    RPSRoot( g_root ).deployProvider
+      MSGEXT( g_pubkey, onDeployedProviderContract, onErrorRestart)();   
+  }
+
+  function onDeployedProviderContract( address  ) public
+  {
+    PRINTF("Checking status of provider contract: {}", g_provider);
+    Sdk.getAccountType(
+                       F_(checkProviderContractStatus2),
+                       g_provider);
+  }
+
+  function checkProviderContractStatus2(int8 acc_type)
+  {
+    if( acc_type == 1 ){
+      _mainMenu();
+    } else {
+      PRINTF("Provider Contract {} not yet deployed...", g_provider);
+      ConfirmInput.get(_F(checkProviderContractStatus2),
+                       "Test again ?");
+    }
+  }
+  
+  function _mainMenu() internal {
+    PRINTF("Provider Contract {} ok.", g_provider);
+    _askRootContractAddress();
+  }
+
+#include "RootContractMethods.sol"
+#include "StdMethods.sol"
 }

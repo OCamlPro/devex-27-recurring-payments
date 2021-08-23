@@ -2,14 +2,18 @@
 
 all: build
 
+# * RPSRoot must be built after RPSUser and RPSProvider because it needs to know
+#   the code hashes
+# * RPS*Debots must be built after RPSRoot because it needs to know its code
+#   hash
 build:
-	ft contract import --make contracts/RPSRoot.spp -f
 	ft contract import --make contracts/RPSUser.spp -f
 	ft contract import --make contracts/RPSProvider.spp -f
+	ft contract import --make contracts/RPSRoot.spp -f
 	ft contract import --make broxus-token-contracts/TONTokenWallet.spp -f
 	ft contract import --make broxus-token-contracts/RootTokenContract.spp -f
-	ft contract import --make debot/RPSUserDebot.spp -f
-	ft contract import --make debot/RPSProviderDebot.spp -f
+	SOLIDITY_CPP=1  ft contract import --make debot/RPSUserDebot.spp -f
+	SOLIDITY_CPP=1 ft contract import --make debot/RPSProviderDebot.spp -f
 
 clean:
 	rm -f *~ *.code  *.sol *.abi.json *.tvm

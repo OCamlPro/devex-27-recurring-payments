@@ -20,7 +20,7 @@ contract RPSRoot is IRPSRoot {
   uint128 constant DEPLOY_USER_COST = 2 ton ;
 
   uint32 constant NEED_PROVIDER_CODE = 1 << 0;
-  uint32 constant NEED_USER_CODE = 1 << 0;
+  uint32 constant NEED_USER_CODE = 1 << 1;
   
   TvmCell g_provider_code ;
   TvmCell g_user_code ;
@@ -32,27 +32,30 @@ contract RPSRoot is IRPSRoot {
     tvm.accept();
   }
 
-  function credit( uint256 pubkey ) public
+  function creditBalance( uint256 pubkey ) public override
   {
     require( msg.value > MINIMAL_CREDIT, RPSBase.EXN_NOT_ENOUGH_GAS );
-    g_balances[ pubkey ] = msg.value - FUNCTION_COST;
+    g_balances[ pubkey ] += msg.value - FUNCTION_COST;
   }
 
-  function deployProvider() public view returns ( address addr )
+  function deployProvider() public returns ( address addr )
   {
     require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    uint128 balance ;
     if( msg.sender.value == 0 ){
-      uint128 balance = g_balances[ msg.pubkey() ];
+      balance = g_balances[ msg.pubkey() ];
       require( balance > FUNCTION_COST + DEPLOY_PROVIDER_COST,
                RPSBase.EXN_NOT_ENOUGH_GAS );
       tvm.accept();
+      delete g_balances[ msg.pubkey() ];
     } else {
       require( msg.value > FUNCTION_COST + DEPLOY_PROVIDER_COST,
                RPSBase.EXN_NOT_ENOUGH_GAS );
+      balance = msg.value;
     }
 
     addr = new RPSProvider{
-    value: DEPLOY_PROVIDER_COST,
+    value: balance - FUNCTION_COST,
     varInit: {
       s_owner: msg.sender ,
       s_root: address(this) 
@@ -63,21 +66,24 @@ contract RPSRoot is IRPSRoot {
     
   }
 
-  function deployUser() public view returns ( address addr )
+  function deployUser() public returns ( address addr )
   {
     require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    uint128 balance ;
     if( msg.sender.value == 0 ){
-      uint128 balance = g_balances[ msg.pubkey() ];
+      balance = g_balances[ msg.pubkey() ];
       require( balance > FUNCTION_COST + DEPLOY_USER_COST,
                RPSBase.EXN_NOT_ENOUGH_GAS );
       tvm.accept();
+      delete g_balances[ msg.pubkey() ] ;
     } else {
       require( msg.value > FUNCTION_COST + DEPLOY_USER_COST,
                RPSBase.EXN_NOT_ENOUGH_GAS );
+      balance = msg.value ;
     }
 
     addr = new RPSUser{
-    value: DEPLOY_USER_COST,
+    value: balance - FUNCTION_COST,
     varInit: {
       s_owner: msg.sender ,
       s_root: address(this) 
@@ -88,5 +94,42 @@ contract RPSRoot is IRPSRoot {
     
   }
 
+  function getBalance( uint256 pubkey ) public view returns ( uint128 )
+  {
+    return g_balances[ pubkey ];
+  }
+  
+  function getUserCode() public view returns ( TvmCell )
+  {
+    require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    return g_user_code ;
+  }
+
+  function getProviderCode() public view returns ( TvmCell )
+  {
+    require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
+    return g_provider_code ;
+  }
+
+  function setUserCode( TvmCell user_code ) public
+  {
+    require( need_init & NEED_USER_CODE != 0, RPSBase.EXN_ALREADY_INITIALIZED );
+    require( tvm.hash( user_code ) ==  0x%{get-code-hash:contract:tvc:RPSUser}, RPSBase.EXN_INVALID_CODEHASH );
+    tvm.accept();
+    g_user_code = user_code ;
+    need_init &= ~NEED_USER_CODE;
+  }
+
+  function setProviderCode( TvmCell provider_code ) public 
+  {
+    require( need_init & NEED_PROVIDER_CODE != 0, RPSBase.EXN_ALREADY_INITIALIZED );
+    require( tvm.hash( provider_code ) ==  0x%{get-code-hash:contract:tvc:RPSProvider}, RPSBase.EXN_INVALID_CODEHASH );
+    tvm.accept();
+    g_provider_code = provider_code ;
+    need_init &= ~NEED_PROVIDER_CODE;
+  }
+
+
+  
 }
 

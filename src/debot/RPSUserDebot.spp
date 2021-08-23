@@ -1,5 +1,7 @@
 pragma ton-solidity >=0.35.0;
 
+#include "cpp.sol"
+
 pragma AbiHeader expire;
 pragma AbiHeader time;
 pragma AbiHeader pubkey;
@@ -15,6 +17,7 @@ import "lib/Upgradable.sol";
 import "lib/Transferable.sol";
 
 import "Utility.sol";
+import "../contracts/RPSRoot.spp";
 
 // Interface of the contract with which to interact
 
@@ -40,59 +43,12 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
   string constant debot_hello =
     "Hi, I will help you work with RPS contracts";
 
-  function _mainMenu() internal
+  function _onHasPubkey() internal
   {
-
-  }
-  
-  /*
-  function _gotoMainMenu() public  {
-    Sdk.getBalance(tvm.functionId(printMainMenu), g_contract );
+    // TODO
   }
 
-  function printMainMenu( uint128 nanotokens ) public {
-    g_balance = nanotokens;
-    string str = format("This wallet has {} tokens on the balance.",
-                        tonsToStr(g_balance) );
-    Terminal.print(0, str);
-
-    MenuItem[] items;
-    items.push( MenuItem("Change Contract", "",
-                         tvm.functionId(askContractAddress)) );
-    items.push( MenuItem("Call Getter", "",
-                         tvm.functionId(callGetter)) );
-    Menu.select("What's next?", "", items);
-  }
-
-  function callGetter() public {
-    optional(uint256) pubkey = 0;
-    g_retryId = tvm.functionId(callGetter);
-    IContract(g_contract).getter{
-        abiVer: 2,
-        extMsg: true,
-        sign: true,
-        pubkey: pubkey,
-        time: uint64(now),
-        expire: 0,
-        callbackId: tvm.functionId(onSuccess),
-        onErrorId: tvm.functionId(onError)
-        }() ;
-  }
-
-  function onError(uint32 sdkError, uint32 exitCode) public {
-    exitCode = exitCode; sdkError = sdkError;
-    ConfirmInput.get(g_retryId,
-                     "Transaction failed. Do you want to retry transaction?");
-  }
-
-  function onSuccess(uint256 y) public {
-    Terminal.print(0, format("Contract returned {}", y) );
-    _gotoMainMenu () ;
-  }
-  */
-  
-  %{subst:file:RootContractMethods.sol}
-  
-  %{file:StdMethods.sol}
+  #include "RootContractMethods.sol"
+  #include "StdMethods.sol"
   
 }

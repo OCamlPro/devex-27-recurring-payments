@@ -5,6 +5,8 @@ library RPSBase {
   uint8 constant EXN_AUTH_FAILED = 100 ;
   uint8 constant EXN_NOT_ENOUGH_GAS = 101 ;
   uint8 constant EXN_NOT_INITIALIZED = 102 ;
+  uint8 constant EXN_ALREADY_INITIALIZED = 103 ;
+  uint8 constant EXN_INVALID_CODEHASH = 104 ;
   
 
   enum Status {
