@@ -100,12 +100,10 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
     if( nanotokens >= 1.8 ton){
       _deployProviderContract();
     } else {
-      MenuItem[] items;
-      items.push( MenuItem("Send 2 tons from multisig", "",
-                         _F(creditBalanceForDeploy)) );
-      items.push( MenuItem("Check balance again", "",
-                         _F(checkProviderBalanceBeforeDeploy)) );
-      Menu.select("What's next?", "", items);
+      MENU(
+           MENU_ITEM( "Send 2 tons from multisig", creditBalanceForDeploy );
+           MENU_ITEM( "Check balance again", checkProviderBalanceBeforeDeploy );
+           );
     }
   }
 
@@ -150,21 +148,17 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   }
   
   function _mainMenu() internal {
-      MenuItem[] items;
-      items.push( MenuItem("List existing services", "",
-                         _F(onGetServices)) );
-      items.push( MenuItem("Publish new service", "",
-                         _F(mainMenu)) );
-      items.push( MenuItem("Claim subscriptions", "",
-                         _F(mainMenu)) );
-      items.push( MenuItem("Transfer claimed subscriptions", "",
-                         _F(mainMenu)) );
-      Menu.select("What's next?", "", items);
+    MENU(
+         MENU_ITEM ( "List existing services", listServices) ;
+         MENU_ITEM ( "Publish new service", publishService) ;
+         MENU_ITEM ( "Claim subscriptions", mainMenu );
+         MENU_ITEM ( "Transfer claimed subscriptions", mainMenu );
+         );
   }
   
   mapping( uint32 => RPSProvider.ProviderService ) g_services ;
   
-  function ListServices() view public
+  function listServices() view public
   {
     IRPSProvider( g_provider ).getServices
       MSGINT(onGetServices, onErrorRestart)
@@ -187,7 +181,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
     _mainMenu();
   }
 
-  function PublishService() public
+  function publishService() public
   {
     _askServiceName();
   }

@@ -108,5 +108,19 @@
     code                                                        \
   }
 
+/*
+  Menus:
+   MENU(
+     MENU_ITEM("description1", callback1);
+     MENU_ITEM("description2", callback2);
+     );
+ */
 
+#define MENU(code) \
+  MenuItem[] items ; \
+  code \
+  Menu.select("What is your choice?", "", items)
+
+#define MENU_ITEM(text, f) \
+  items.push( MenuItem(text, "", tvm.functionId(f)) )
 
