@@ -19,29 +19,20 @@ import "lib/Transferable.sol";
 import "Utility.sol";
 import "../contracts/RPSRoot.spp";
 
-// Interface of the contract with which to interact
-
-interface IContract {
-  function setter ( uint256 x ) external ;
-  function getter () external returns ( uint256 y ) ;
-}
-
 contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
 
-  string constant debot_name = "RPSDebot" ;
-  string constant debot_publisher = "My Software Company" ;
-  string constant debot_caption = "Debot of RPS contracts" ;
-  string constant debot_author = "My Software Company" ;
-  string constant debot_language = "en" ;
+  DEBOT_NAME("RPSUserDebot",
+        "OCamlPro",
+        "Debot for Users to use RPS",
+        "Fabrice LE FESSANT");
+  DEBOT_VERSION(1,0,0);
   // your address with 0x instead of 0:
-  uint8 constant debot_version_major = 1 ;
-  uint8 constant debot_version_minor = 0 ;
-  uint8 constant debot_version_fix = 0 ;
-  uint256 constant debot_support =
-    0x66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f ;
-
-  string constant debot_hello =
-    "Hi, I will help you work with RPS contracts";
+  DEBOT_SUPPORT(
+                0x66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f );
+  
+  DEBOT_HELLO(
+    "Hi, I will help you work with RPS contracts"
+              );
 
   function _onHasPubkey() internal
   {

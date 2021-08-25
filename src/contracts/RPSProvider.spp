@@ -30,21 +30,6 @@ contract RPSProvider is
 IRPSProvider
 , MultiWallets
 {  
-  struct ProviderService {
-    uint32 serv_id ;
-    RPSBase.Service service ;
-  }
-  
-  struct ProviderSubscription {
-    uint64 sub_pid;
-    uint64 sub_uid ;
-    uint32 serv_id ;
-    uint8 periods ;
-    address user;
-    RPSBase.Status status;
-    uint64 sub_date;
-  }
-
   uint128 constant CALLBACK_COST = 0.8 ton;
   uint128 constant CONSTRUCTOR_COST = 1 ton;
   uint128 constant FUNCTION_COST = 0.1 ton ;
@@ -85,10 +70,10 @@ IRPSProvider
   function newService( RPSBase.Service service, address callback ) public
   {
     _check_owner( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
-    
+
     uint32 serv_id = g_service_counter ;
     g_service_counter++;
-    
+
     ProviderService serv =
       ProviderService(
                       serv_id,
@@ -100,7 +85,7 @@ IRPSProvider
     _need_wallet( service.token_root );
   }
 
-  function listServices() public view responsible
+  function getServices() public view responsible override
     returns ( mapping( uint32 => ProviderService ) services )
   {
     services = g_services ;

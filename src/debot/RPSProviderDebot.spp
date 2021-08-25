@@ -21,36 +21,27 @@ import "Utility.sol";
 import "../contracts/RPSProvider.spp";
 import "../contracts/RPSRoot.spp";
 
-// Interface of the contract with which to interact
-
-interface IContract {
-  function setter ( uint256 x ) external ;
-  function getter () external returns ( uint256 y ) ;
-}
-
 contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
 
-  string constant debot_name = "RPSDebot" ;
-  string constant debot_publisher = "My Software Company" ;
-  string constant debot_caption = "Debot of RPS contracts" ;
-  string constant debot_author = "My Software Company" ;
-  string constant debot_language = "en" ;
+  DEBOT_NAME("RPSProviderDebot",
+        "OCamlPro",
+        "Debot for Service Providers to use RPS",
+        "Fabrice LE FESSANT");
+  DEBOT_VERSION(1,0,0);
   // your address with 0x instead of 0:
-  uint8 constant debot_version_major = 1 ;
-  uint8 constant debot_version_minor = 0 ;
-  uint8 constant debot_version_fix = 0 ;
-  uint256 constant debot_support =
-    0x66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f ;
+  DEBOT_SUPPORT(
+                0x66e01d6df5a8d7677d9ab2daf7f258f1e2a7fe73da5320300395f99e01dc3b5f );
   
-  string constant debot_hello =
-    "Hi, I will help you work with RPS contracts";
+  DEBOT_HELLO(
+    "Hi, I will help you work with RPS contracts"
+              );
 
   TvmCell g_provider_code ;
   address g_provider ;
 
   function _onHasPubkey() internal {
     Terminal.print(0, "Getting provider code");
-    RPSRoot( g_root ).getProviderCode
+    IRPSRoot( g_root ).getProviderCode
       MSGINT(onHasProviderCode,onErrorRestart) ();
   }
 
@@ -98,7 +89,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   {
     // Sdk.getBalance( F_( onProviderBalanceBeforeDeploy ),
     //                g_provider );
-    RPSRoot( g_root ).getBalance
+    IRPSRoot( g_root ).getBalance
       MSGINT(onProviderBalanceBeforeDeploy,onErrorRestart)
       ( g_pubkey );
   }
@@ -130,7 +121,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function _deployProviderContract() internal
   {
     PRINT("Deploying provider contract");
-    RPSRoot( g_root ).deployProvider
+    IRPSRoot( g_root ).deployProvider
       MSGEXT( g_pubkey, onDeployedProviderContract, onErrorRestart)();   
   }
 
@@ -152,11 +143,78 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
                        "Test again ?");
     }
   }
+
+  function mainMenu() public
+  {
+    _mainMenu();
+  }
   
   function _mainMenu() internal {
-    PRINTF("Provider Contract {} ok.", g_provider);
-    _askRootContractAddress();
+      MenuItem[] items;
+      items.push( MenuItem("List existing services", "",
+                         _F(onGetServices)) );
+      items.push( MenuItem("Publish new service", "",
+                         _F(mainMenu)) );
+      items.push( MenuItem("Claim subscriptions", "",
+                         _F(mainMenu)) );
+      items.push( MenuItem("Transfer claimed subscriptions", "",
+                         _F(mainMenu)) );
+      Menu.select("What's next?", "", items);
   }
+  
+  mapping( uint32 => RPSProvider.ProviderService ) g_services ;
+  
+  function ListServices() view public
+  {
+    IRPSProvider( g_provider ).getServices
+      MSGINT(onGetServices, onErrorRestart)
+      ();
+  }
+
+  function onGetServices(
+                         mapping( uint32 => RPSProvider.ProviderService )
+                         services ) public
+  {
+    g_services = services ;
+
+    uint32 counter = 0;
+    MAP_ITER(g_services, serv_id, uint32, serv, RPSProvider.ProviderService,
+             counter++;
+             RPSBase.Service service = serv.service;
+             PRINTF("{}: name='{}' period={} cost/period={}",
+                    serv_id, service.name, service.period, service.period_cost);
+             );
+    _mainMenu();
+  }
+
+  function PublishService() public
+  {
+    _askServiceName();
+  }
+
+  RPSBase.Service g_service ;
+  QUERY_STRING_FUNCTION(_askServiceName, "Enter Service Name:", s,
+                        if( s == "" ){
+                          _askServiceName();
+                        } else {
+                          g_service.name = s;
+                          _askServicePeriod();
+                        }
+                        )
+
+  QUERY_UINT256_FUNCTION(_askServicePeriod,
+                         "Enter Service Period in seconds (1 day=86400):",
+                         period,
+                         g_service.period = uint64(period);
+                         _askServiceCost();
+                        )
+
+  QUERY_UINT256_FUNCTION(_askServiceCost,
+                         "Enter Cost per Period in nanotons:",
+                         cost,
+                         g_service.period_cost = uint128(cost);
+                         _mainMenu();
+                        )
 
 #include "RootContractMethods.sol"
 #include "StdMethods.sol"

@@ -38,7 +38,7 @@ contract RPSRoot is IRPSRoot {
     g_balances[ pubkey ] += msg.value - FUNCTION_COST;
   }
 
-  function deployProvider() public returns ( address addr )
+  function deployProvider() public override returns ( address addr )
   {
     require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     uint128 balance ;
@@ -66,7 +66,7 @@ contract RPSRoot is IRPSRoot {
     
   }
 
-  function deployUser() public returns ( address addr )
+  function deployUser() public override returns ( address addr )
   {
     require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     uint128 balance ;
@@ -94,18 +94,18 @@ contract RPSRoot is IRPSRoot {
     
   }
 
-  function getBalance( uint256 pubkey ) public view returns ( uint128 )
+  function getBalance( uint256 pubkey ) public view override returns ( uint128 )
   {
     return g_balances[ pubkey ];
   }
   
-  function getUserCode() public view returns ( TvmCell )
+  function getUserCode() public view override returns ( TvmCell )
   {
     require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     return g_user_code ;
   }
 
-  function getProviderCode() public view returns ( TvmCell )
+  function getProviderCode() public override view returns ( TvmCell )
   {
     require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     return g_provider_code ;

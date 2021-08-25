@@ -12,8 +12,8 @@ build:
 	ft contract import --make contracts/RPSRoot.spp -f
 	ft contract import --make broxus-token-contracts/TONTokenWallet.spp -f
 	ft contract import --make broxus-token-contracts/RootTokenContract.spp -f
-	SOLIDITY_CPP=1  ft contract import --make debot/RPSUserDebot.spp -f
-	SOLIDITY_CPP=1 ft contract import --make debot/RPSProviderDebot.spp -f
+	ft contract import --make debot/RPSUserDebot.spp -f
+	ft contract import --make debot/RPSProviderDebot.spp -f
 
 clean:
 	rm -f *~ *.code  *.sol *.abi.json *.tvm
