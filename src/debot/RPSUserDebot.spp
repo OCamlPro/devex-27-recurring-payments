@@ -1,6 +1,6 @@
 pragma ton-solidity >=0.35.0;
 
-#include "cpp.sol"
+#include "lib/cpp.sol"
 
 pragma AbiHeader expire;
 pragma AbiHeader time;
@@ -16,7 +16,8 @@ import "lib/Menu.sol";
 import "lib/Upgradable.sol";
 import "lib/Transferable.sol";
 
-import "Utility.sol";
+import "lib/Utility.sol";
+import "interfaces/IMultisig.sol";
 import "../contracts/RPSRoot.spp";
 
 contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
@@ -40,6 +41,6 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
   }
 
   #include "RootContractMethods.sol"
-  #include "StdMethods.sol"
+  #include "lib/StdMethods.sol"
   
 }

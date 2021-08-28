@@ -108,6 +108,26 @@
     code                                                        \
   }
 
+#define QUERY_CONTRACT_FUNCTION(f, text, g_addr, code )             \
+  address g_addr;                                                   \
+  function f() internal                                             \
+  {                                                                 \
+    AddressInput.get(F_(on##f##Callback), text);                    \
+  }                                                                 \
+  function on##f##Callback(address value) public                    \
+  {                                                                 \
+    g_addr = value ;                                                \
+    Sdk.getAccountType(F_( on##f##StatusCallback ), value);         \
+  }                                                                 \
+  function on##f##StatusCallback(int8 acc_type) public {            \
+    if (!Utility._checkActiveStatus(acc_type, "Contract")) {        \
+      PRINT("Error: contract is not deployed");                     \
+      f();                                                          \
+    } else {                                                        \
+      code                                                          \
+        }                                                           \
+  }
+
 /*
   Menus:
    MENU(
