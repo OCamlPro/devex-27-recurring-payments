@@ -37,9 +37,101 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
 
   function _onHasPubkey() internal
   {
-    // TODO
+    PRINT("Getting User Contract address");
+    IRPSRoot( g_root ).getUserAddress
+      MSGINT( onHasUserAddress, onErrorRestart )
+      ( g_pubkey, address(0) );
   }
 
+  address g_user;
+  function onHasUserAddress( address user ) public
+  {
+    g_user = user ;
+    _checkUserContractStatus();
+  }
+
+  function _checkUserContractStatus() internal
+  {
+    PRINTF("Checking status of User Contract: {}", g_user);
+    Sdk.getAccountType(
+                       F_(checkUserContractStatus),
+                       g_user);
+  }
+
+  function checkUserContractStatus( int8 acc_type ) public
+  {
+    PRINTF("User Contract status: {}", acc_type);
+    if( acc_type == 1 ){
+      mainMenu();
+    } else {
+      PRINTF("User Contract {} not deployed yet.", g_user);
+      checkPubkeyBalanceBeforeDeploy();
+    }
+  }
+
+  function checkPubkeyBalanceBeforeDeploy() public view
+  {
+    IRPSRoot( g_root ).getBalance
+      MSGINT(onPubkeyBalanceBeforeDeploy,onErrorRestart)
+      ( g_pubkey );
+  }
+
+  function onPubkeyBalanceBeforeDeploy( uint128 nanotokens ) public
+  {
+    PRINTF("Pubkey balance on Root Contract: {}", tonsToStr( nanotokens ));
+    if( nanotokens >= 2.1 ton){
+      _deployUserContract();
+    } else {
+      MENU(
+           MENU_ITEM( "Send 3 tons from multisig", creditBalanceForDeploy );
+           MENU_ITEM( "Check balance again", checkPubkeyBalanceBeforeDeploy );
+           );
+    }
+  }
+
+  function creditBalanceForDeploy() view public
+  {
+    TvmCell payload = tvm.encodeBody( IRPSRoot.creditBalance,
+                                      uint256(g_pubkey) );
+    IMultisig( g_multisig ).sendTransaction
+      MSGEXT(g_pubkey,checkPubkeyBalanceBeforeDeploy,onErrorRestart)
+    (g_root, 3 ton, true, 0, payload);
+  }
+
+  function _deployUserContract() internal
+  {
+   PRINT("Deploying User Contract");
+    IRPSRoot( g_root ).deployUser
+      MSGEXT( g_pubkey, onDeployedUserContract, onErrorRestart)();
+  }
+  
+  function onDeployedUserContract( address  ) public
+  {
+    _checkUserContractStatus();
+  }
+  
+  function mainMenu() public {
+    Sdk.getBalance( F_( mainMenuWithBalance ), g_user );
+  }
+
+  function mainMenuWithBalance( uint128 nanotokens ) public
+  {
+    PRINTF("User Contract balance: {} ton", tonsToStr( nanotokens ));
+    MENU(
+         MENU_ITEM ( "Subscribe to a service", mainMenu) ;
+         MENU_ITEM ( "List subscriptions", mainMenu) ;
+         MENU_ITEM ( "Stop subscription", mainMenu );
+         MENU_ITEM ( "Pause subscription", mainMenu );
+         MENU_ITEM ( "Unpause subscription", mainMenu );
+         );
+  }
+
+  function onErrorMenu(uint32 sdkError, uint32 exitCode) public {
+    Terminal.print(0, format("Error: sdkError:{} exitCode:{}", sdkError, exitCode));
+    mainMenu();
+  }
+
+  
   #include "RootContractMethods.sol"
   #include "lib/StdMethods.sol"
   

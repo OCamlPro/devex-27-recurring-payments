@@ -23,7 +23,7 @@ interface IRPSProvider {
 
   function getServices() external view responsible
     returns ( mapping( uint32 => ProviderService ) services );
-
+  function addService( RPSBase.Service service, address callback ) external;
   
   function prepareSubscribe( uint64 sub_id,
                              uint32 serv_id
@@ -38,5 +38,13 @@ interface IRPSProvider {
   
   function stopSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
   function pauseSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
-  function unpauseSubscribe( uint64 sub_uid, uint64 sub_pid ) external;  
+  function unpauseSubscribe( uint64 sub_uid, uint64 sub_pid ) external;
+
+  function claimSubscriptions() external
+    returns ( mapping( address => uint128 ) claimed ) ;
+  function transferClaimed( address token_root, address dest_wallet )
+    external;
+  function getClaimedSubscriptions()  external
+    returns ( mapping( address => uint128 ) claimed );
+  
 }

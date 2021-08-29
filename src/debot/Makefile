@@ -1,10 +1,5 @@
-all: build
-	ft contract import RPSDebot.sol
-
-build: RPSDebot.tvm
-
-RPSDebot.tvm: RPSDebot.sol lib/*.sol
-	ft contract build RPSDebot.sol -f
+all:
+	$(MAKE) -C ..
 
 deploy:
 	ft contract deploy RPSDebot --create debot_RPS -f

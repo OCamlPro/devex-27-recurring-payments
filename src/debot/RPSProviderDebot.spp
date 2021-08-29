@@ -40,14 +40,14 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   address g_provider ;
 
   function _onHasPubkey() internal {
-    Terminal.print(0, "Getting provider code");
+    PRINT("Getting provider code");
     IRPSRoot( g_root ).getProviderCode
       MSGINT(onHasProviderCode,onErrorRestart) ();
   }
 
   function onHasProviderCode( TvmCell provider_code ) public
   {
-    Terminal.print(0, "Provider code received");
+    PRINT("Provider code received");
     g_provider_code = provider_code ;
     _onHasProviderCode();
   }
@@ -87,8 +87,6 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   
   function _checkProviderBalanceBeforeDeploy() view internal
   {
-    // Sdk.getBalance( F_( onProviderBalanceBeforeDeploy ),
-    //                g_provider );
     IRPSRoot( g_root ).getBalance
       MSGINT(onProviderBalanceBeforeDeploy,onErrorRestart)
       ( g_pubkey );
@@ -97,11 +95,11 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function onProviderBalanceBeforeDeploy( uint128 nanotokens ) public
   {
     PRINTF("Provider balance: {}", tonsToStr( nanotokens ));
-    if( nanotokens >= 1.8 ton){
+    if( nanotokens >= 2.1 ton){
       _deployProviderContract();
     } else {
       MENU(
-           MENU_ITEM( "Send 2 tons from multisig", creditBalanceForDeploy );
+           MENU_ITEM( "Send 3 tons from multisig", creditBalanceForDeploy );
            MENU_ITEM( "Check balance again", checkProviderBalanceBeforeDeploy );
            );
     }
@@ -113,7 +111,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
                                       uint256(g_pubkey) );
     IMultisig( g_multisig ).sendTransaction
       MSGEXT(g_pubkey,checkProviderBalanceBeforeDeploy,onErrorRestart)
-    (g_root, 2 ton, true, 0, payload);
+    (g_root, 3 ton, true, 0, payload);
   }
 
   function _deployProviderContract() internal
@@ -148,12 +146,53 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   }
   
   function _mainMenu() internal {
+    Sdk.getBalance( F_( mainMenuWithBalance ), g_provider );
+  }
+
+  function mainMenuWithBalance( uint128 nanotokens ) public
+  {
+    PRINTF("Provider contract balance: {} ton", tonsToStr( nanotokens ));
     MENU(
          MENU_ITEM ( "List existing services", listServices) ;
          MENU_ITEM ( "Publish new service", publishService) ;
-         MENU_ITEM ( "Claim subscriptions", mainMenu );
-         MENU_ITEM ( "Transfer claimed subscriptions", mainMenu );
+         MENU_ITEM ( "Claim subscriptions", claimSubscriptions );
+         MENU_ITEM ( "List claimed subscriptions", listClaimedSubscriptions );
+         MENU_ITEM ( "Transfer claimed subscriptions",
+                     transferClaimedSubscriptions );
+         MENU_ITEM( "List subscriptions", listSubscriptions );
          );
+  }
+
+  function transferClaimedSubscriptions() public view
+  {
+    IRPSProvider( g_provider ).transferClaimed
+      MSGEXT( g_pubkey, mainMenu, onErrorRestart )
+      ( address(0), g_multisig ) ;
+  }
+  
+  function claimSubscriptions() public view
+  {
+    IRPSProvider( g_provider ).claimSubscriptions
+      MSGEXT( g_pubkey, onClaimedSubscriptions, onErrorRestart ) () ;
+  }
+
+  function listClaimedSubscriptions() public view
+  {
+    IRPSProvider( g_provider ).getClaimedSubscriptions
+      MSGINT( onClaimedSubscriptions, onErrorRestart ) () ;
+  }
+
+  function onClaimedSubscriptions( mapping( address => uint128 ) claimed )
+    public
+  {
+    for( (address root_token, uint128 balance ) : claimed ){
+      if( root_token == address(0) ){
+        PRINTF("Claimed {} ton", tonsToStr(balance) );
+      } else {
+        PRINTF("Claimed {} for root_token {}", balance, root_token );
+      }
+    }
+    _mainMenu();
   }
   
   mapping( uint32 => RPSProvider.ProviderService ) g_services ;
@@ -187,11 +226,11 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   }
 
   RPSBase.Service g_service ;
-  QUERY_STRING_FUNCTION(_askServiceName, "Enter Service Name:", s,
-                        if( s == "" ){
+  QUERY_STRING_FUNCTION(_askServiceName, "Enter Service Name:", value,
+                          if( value == "" ){
                           _askServiceName();
                         } else {
-                          g_service.name = s;
+                          g_service.name = value;
                           _askServicePeriod();
                         }
                         )
@@ -204,12 +243,26 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
                         )
 
   QUERY_UINT256_FUNCTION(_askServiceCost,
-                         "Enter Cost per Period in nanotons:",
+                         "Enter Cost per Period (in nanotons):",
                          cost,
                          g_service.period_cost = uint128(cost);
-                         _mainMenu();
+                         _addService();
                         )
 
+    address g_callback ; // No callback for debot
+    function _addService() public
+    {
+      PRINT("Adding Service on-chain");
+      IRPSProvider( g_provider ).addService
+        MSGEXT( g_pubkey, mainMenu, onErrorRestart )
+        ( g_service, g_callback) ;
+    }
+
+    function listSubscriptions() public
+    {
+      // TODO
+    }
+    
 #include "RootContractMethods.sol"
 #include "lib/StdMethods.sol"
 }

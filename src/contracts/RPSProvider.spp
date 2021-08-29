@@ -67,7 +67,8 @@ IRPSProvider
     _MultiWallets();
   }
 
-  function newService( RPSBase.Service service, address callback ) public
+  function addService( RPSBase.Service service, address callback )
+    public override
   {
     _check_owner( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
 
@@ -224,10 +225,12 @@ IRPSProvider
     return sub;
   }
   
-  function claimSubscriptions() public
+  function claimSubscriptions() public override
     returns ( mapping( address => uint128 ) claimed )
   {
-    // _check_owner();
+    if( msg.pubkey() == tvm.pubkey() ){
+      tvm.accept();
+    }
     optional( uint64, ProviderSubscription ) opt =
       g_subscriptions.min();
     while( opt.hasValue() ){
@@ -239,7 +242,14 @@ IRPSProvider
     claimed = g_token_claimed;
   }
 
-  function transferClaimed( address token_root, address dest_wallet ) public
+  function getClaimedSubscriptions()  public override
+    returns ( mapping( address => uint128 ) claimed )
+  {
+    return g_token_claimed ;
+  }
+  
+  function transferClaimed( address token_root, address dest_wallet )
+    public override
   {
     _check_owner( FUNCTION_COST + TRANSFER_COST );
     uint128 amount = g_token_claimed[ token_root ];

@@ -67,17 +67,17 @@
     Terminal.input( tvm.functionId(f##Callback), text, false ); \
   }                                                             \
                                                                 \
-  function f##Callback( string s ) public                       \
-  {                                                             \
-    if( s.length < 2 || s[0] != '0' || s[1] != 'x' )            \
-      s = "0x" + s;                                             \
-    (uint256 pubkey, bool res) = stoi(s);                       \
-    if( !res ){                                                 \
-      PRINT("Invalid format for entry");                        \
-      f();                                                      \
-      return;                                                   \
-    }                                                           \
-    code                                                        \
+  function f##Callback( string value ) public                           \
+  {                                                                     \
+    if( value.length < 2 || value[0] != '0' || value[1] != 'x' )        \
+      value = "0x" + value;                                             \
+    (uint256 pubkey, bool res) = stoi(value);                           \
+    if( !res ){                                                         \
+      PRINT("Invalid format for entry");                                \
+      f();                                                              \
+      return;                                                           \
+    }                                                                   \
+    code                                                                \
   }
 
 #define QUERY_UINT256_FUNCTION(f,text,pubkey,code)              \
@@ -86,9 +86,9 @@
     Terminal.input( tvm.functionId(f##Callback), text, false ); \
   }                                                             \
                                                                 \
-  function f##Callback( string s ) public                       \
+  function f##Callback( string value ) public                   \
   {                                                             \
-    (uint256 pubkey, bool res) = stoi(s);                       \
+    (uint256 pubkey, bool res) = stoi(value);                   \
     if( !res ){                                                 \
       PRINT("Invalid format for number");                       \
       f();                                                      \
@@ -97,15 +97,15 @@
     code                                                        \
   }
 
-#define QUERY_STRING_FUNCTION(f,text,s,code)                    \
-  function f() internal                                         \
-  {                                                             \
-    Terminal.input( tvm.functionId(f##Callback), text, false ); \
-  }                                                             \
-                                                                \
-  function f##Callback( string s ) public                       \
-  {                                                             \
-    code                                                        \
+#define QUERY_STRING_FUNCTION(f,text,value,code)                    \
+  function f() internal                                             \
+  {                                                                 \
+    Terminal.input( tvm.functionId(on##f##Callback), text, false ); \
+  }                                                                 \
+                                                                    \
+  function on##f##Callback( string value ) public                   \
+  {                                                                 \
+    code                                                            \
   }
 
 #define QUERY_CONTRACT_FUNCTION(f, text, g_addr, code )             \
