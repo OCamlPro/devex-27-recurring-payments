@@ -114,20 +114,74 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
     Sdk.getBalance( F_( mainMenuWithBalance ), g_user );
   }
 
+  mapping ( uint64 => IRPSUser.UserSubscription ) g_subscriptions ;
+  uint128 g_balance ;
+  
   function mainMenuWithBalance( uint128 nanotokens ) public
   {
-    PRINTF("User Contract balance: {} ton", tonsToStr( nanotokens ));
+    g_balance = nanotokens ;
+    IRPSUser( g_user ).getSubscriptions
+      MSGINT( mainMenuWithSubscriptions, onErrorRestart) () ;
+  }
+  
+  function mainMenuWithSubscriptions
+    (
+     mapping ( uint64 => IRPSUser.UserSubscription ) subscriptions 
+     ) public
+  {
+    g_subscriptions = subscriptions ;
+    PRINTF("User Contract balance: {} ton", tonsToStr( g_balance ));
+    for( (uint64 sub_uid, IRPSUser.UserSubscription sub) : g_subscriptions ){
+      PRINTF("{}: subscribed to {}", sub_uid, sub.service.name);
+    }
+    
     MENU(
-         MENU_ITEM ( "Subscribe to a service", mainMenu) ;
-         MENU_ITEM ( "List subscriptions", mainMenu) ;
-         MENU_ITEM ( "Stop subscription", mainMenu );
-         MENU_ITEM ( "Pause subscription", mainMenu );
-         MENU_ITEM ( "Unpause subscription", mainMenu );
+         MENU_ITEM ( "Subscribe to a service", subscribe) ;
+         MENU_ITEM ( "Stop subscription", stopSubscription );
+         MENU_ITEM ( "Pause subscription", pauseSubscription );
+         MENU_ITEM ( "Unpause subscription", unpauseSubscription );
          );
   }
 
+  function subscribe() public
+  {
+    // TODO
+    // ask Provider address
+    // list Available services
+    // Query service number
+    // Query number of periods
+    mainMenu();
+  }
+
+  function stopSubscription() public
+  {
+    // TODO
+    // ask sub_uid
+    // check state
+    // send message
+    mainMenu();
+  }
+
+  function pauseSubscription() public
+  {
+    // TODO
+    // ask sub_uid
+    // check state
+    // send message
+    mainMenu();
+  }
+
+  function unpauseSubscription() public
+  {
+    // TODO
+    // ask sub_uid
+    // check state
+    // send message
+    mainMenu();
+  }
+  
   function onErrorMenu(uint32 sdkError, uint32 exitCode) public {
-    Terminal.print(0, format("Error: sdkError:{} exitCode:{}", sdkError, exitCode));
+    PRINTF("Error: sdkError:{} exitCode:{}", sdkError, exitCode);
     mainMenu();
   }
 

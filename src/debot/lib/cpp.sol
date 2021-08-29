@@ -97,7 +97,7 @@
     code                                                        \
   }
 
-#define QUERY_STRING_FUNCTION(f,text,value,code)                    \
+#define QUERY_STRING_FUNCTION(f,text,variable,code)                    \
   function f() internal                                             \
   {                                                                 \
     Terminal.input( tvm.functionId(on##f##Callback), text, false ); \
@@ -105,6 +105,7 @@
                                                                     \
   function on##f##Callback( string value ) public                   \
   {                                                                 \
+    string variable = value;                                        \
     code                                                            \
   }
 

@@ -226,11 +226,11 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   }
 
   RPSBase.Service g_service ;
-  QUERY_STRING_FUNCTION(_askServiceName, "Enter Service Name:", value,
-                          if( value == "" ){
+  QUERY_STRING_FUNCTION(_askServiceName, "Enter Service Name:", s,
+                          if( s == "" ){
                           _askServiceName();
                         } else {
-                          g_service.name = value;
+                          g_service.name = s;
                           _askServicePeriod();
                         }
                         )
