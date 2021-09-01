@@ -84,23 +84,30 @@ The system has been deployed on the testnet.
 
 The following addresses can be used:
 \begin{description}
-  \item[Root contract: 0:36b2657ba8546a1a7bdd06c9ce9062c7e998585a05fc00c03f57dc75546c96c4] The {\tt RPSRoot} contract shared by all
-    contracts of a given System;
-  \item[Provider debot: 0:af6e90a43565598f7b59a283416bacc2bebb222064c9b4d309b8e6725500fd6e] This debot can be used to act as a
-    Service Provider, i.e. deploy a {\tt RPSProvider} contract, list
-    services, add services and claim subscriptions for elapsed
-    periods;
-  \item[User debot: 0:ca8d11ffa44009a02ce4b02e42631e5c8c96042f1c0aae57acae132b29ed13a4] This debot can be used to act as a Service
-    User, i.e deploy a {\tt RPSUser} contract, check subscriptions,
-    subscribe to services and manage them (stop, pause and unpause);
-  \item[Provider contract: 0:bd6c0225544eac8f4314e33d88b7e252cf6d5e002cf77654eeb4a03e11c5ec7f] This is an example Service Provider
-    contract with only one service, with a period of 1 minute, and a
-    cost of 1 ton per minute;
+  \item[Root contract: {\tt
+      0:36b2657ba8546a1a7bdd06c9ce9062c7e998585a05fc00c03f57dc75546c96c4}]
+    The {\tt RPSRoot} contract shared by all contracts of a given
+    System;
+  \item[Provider debot: {\tt
+      0:af6e90a43565598f7b59a283416bacc2bebb222064c9b4d309b8e6725500fd6e}]
+    This debot can be used to act as a Service Provider, i.e. deploy a
+    {\tt RPSProvider} contract, list services, add services and claim
+    subscriptions for elapsed periods;
+  \item[User debot: {\tt
+      0:ca8d11ffa44009a02ce4b02e42631e5c8c96042f1c0aae57acae132b29ed13a4}]
+    This debot can be used to act as a Service User, i.e deploy a {\tt
+      RPSUser} contract, check subscriptions, subscribe to services
+    and manage them (stop, pause and unpause);
+  \item[Provider contract: {\tt
+      0:bd6c0225544eac8f4314e33d88b7e252cf6d5e002cf77654eeb4a03e11c5ec7f}]
+    This is an example Service Provider contract with only one
+    service, with a period of 1 minute, and a cost of 1 ton per
+    minute;
     
 \end{description}
 
 These contracts have been deployed with TVC images corresponding to
-GIT commit.
+GIT commit {\tt 0ae44f292dab59f790a9efd618a5029a2e4333fb}.
 
 \section{Architecture}
 
