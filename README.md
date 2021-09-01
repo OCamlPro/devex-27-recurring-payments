@@ -1,4 +1,28 @@
-Architecture:
+# System of Smart Contracts for Recurring Payments
+
+
+## Code
+
+The following directory are available:
+
+* `contracts/` contains the main contracts `RPSRoot`, `RPSProvider`
+  and `RPSUser`.
+
+* `debot/` contains 2 debots, one for users and one for service providers.
+
+* `report/` contains the PDF of the submission with more details
+
+* `tests/` contains scripts to run the contracts on TONOS-SE
+
+
+## Tooling
+
+To build the project, you will need to use `ft`, from
+https://github.com/OCamlPro/freeton_wallet .
+
+## Architecture
+
+See the PDF file in report/ for a more detailed description.
 
 SP: Service Provider
 RPS: Recurrent Payment System
@@ -29,27 +53,5 @@ or at the current time (if already paused for that time).
 A user can stop the service, starting at the next period. In this
 case, it recovers its payment for the periods that have not been
 started.
-
-Version 2: distributed
-
-In this version, the SP contract does not directly contains the set of
-subscriptions. Instead, a tree is built with all the subscriptions.
-Each node in the tree (1) manages 256 subscriptions, and (2) links to
-16 children nodes.
-
-When a new subscription is added, it goes down the tree from the root
-node, trying to find an empty slot. If a given node cannot manage the
-subscription, it sends the subscription to one of its children nodes.
-
-When a subscription is removed, it goes up the tree, from its managing
-node to the upper node.
-
-When the SP claims its payments, it broadcasts a message from the root
-node to all children nodes.
-
-Each node can be split into 2 contracts: one is a routing contract,
-responsible for maintaining the structure of the tree and routing
-messages up and down, the other one is a storing contract, responsible
-for storing subscriptions.
 
 
