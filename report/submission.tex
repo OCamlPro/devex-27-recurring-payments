@@ -59,8 +59,14 @@ The System supports both TON tokens and TIP-3 tokens for all services
 Provider can publish Services using different currencies). The current
 System uses Broxus TIP-3 tokens.
 
+Service users and service providers can monitor their contracts for
+events, corresponding to changes in the subscriptions, or provide a
+callback, i.e. a contract that will receive a message every time a
+change is done on subscriptions.
+
 The System has been deployed on the Testnet, and debots are available
-for Service Providers and Service Users. A set of test scripts is also available to test on TONOS-SE.
+for Service Providers and Service Users. A set of test scripts is also
+available to test on TONOS-SE.
 
 \tableofcontents
 
@@ -69,38 +75,119 @@ for Service Providers and Service Users. A set of test scripts is also available
 The source code of all smart contracts is available at
 \url{https://github.com/OCamlPro/devex-27-recurring-payments}.
 
+All smart contracts are written in Solidity, preprocessed with {\tt
+  cpp -E} and {\tt ft} substitutions.
+
 \section{Deployment}
 
 The system has been deployed on the testnet.
 
 The following addresses can be used:
 \begin{description}
-  \item[Root contract: XXX] The {\tt RPSRoot} contract shared by all
+  \item[Root contract: 0:36b2657ba8546a1a7bdd06c9ce9062c7e998585a05fc00c03f57dc75546c96c4] The {\tt RPSRoot} contract shared by all
     contracts of a given System;
-  \item[Provider debot: XXX] This debot can be used to act as a
+  \item[Provider debot: 0:af6e90a43565598f7b59a283416bacc2bebb222064c9b4d309b8e6725500fd6e] This debot can be used to act as a
     Service Provider, i.e. deploy a {\tt RPSProvider} contract, list
     services, add services and claim subscriptions for elapsed
     periods;
-  \item[User debot: XXX] This debot can be used to act as a Service
+  \item[User debot: 0:ca8d11ffa44009a02ce4b02e42631e5c8c96042f1c0aae57acae132b29ed13a4] This debot can be used to act as a Service
     User, i.e deploy a {\tt RPSUser} contract, check subscriptions,
     subscribe to services and manage them (stop, pause and unpause);
-  \item[Provider contract: XXX] This is an example Service Provider
+  \item[Provider contract: 0:bd6c0225544eac8f4314e33d88b7e252cf6d5e002cf77654eeb4a03e11c5ec7f] This is an example Service Provider
     contract with only one service, with a period of 1 minute, and a
     cost of 1 ton per minute;
     
 \end{description}
-    
+
+These contracts have been deployed with TVC images corresponding to
+GIT commit.
+
 \section{Architecture}
 
 \subsection{Smart contracts}
 
 The System provides 3 different kinds of contracts:
 \begin{description}
-\item[{\tt RPSRoot} contract]: the {\tt RPSRoot} contract is in charge
+\item[{\tt RPSRoot} contract:] the {\tt RPSRoot} contract is in charge
   of deploying smart contracts for Service Providers and Service
   Users.
-\item[{\tt RPSUser} contract]
-\item[{\tt RPSProvider} contract]
+
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/contracts/RPSRoot.spp}
+
+  The contrat is used as follows:
+  \begin{itemize}
+  \item After deployment, the owner must call functions {\tt
+    setProviderCode} and {\tt setUserCode} to provide the code of
+    other contracts.
+  \item Before deploying a contract, a user must first provide some
+    funds to the contract. This is done by calling the {\tt
+      creditBalance} function, to associate the funds with the user's
+    pubkey. Once his balance contains enough TONs, the user can either
+    call {\tt deployProvider} or {\tt deployUser} functions.
+  \item The contract also provides utility functions, such as {\tt
+    getUserAddress} and {\tt getProviderAddress} to compute addresses
+    from pubkeys.
+  \end{itemize}
+  
+\item[{\tt RPSProvider} contract:] the {\tt RPSProvider} contract is
+  in charge of managing the services and subscriptions for a given
+  Service Provider (identified either by his pubkey or his address).
+
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/contracts/RPSProvider.spp}
+
+  This contract is used as follows:
+  \begin{itemize}
+  \item To manage Services, the contract provides two functions {\tt
+    addService} and {\tt getServices}. Services have a {\tt name}, a
+    {\tt description}, a {\tt period} (in seconds) and a {\tt
+      period\_cost} (in nanotons). Once added, services receive a uniq
+    identifier for the provider, called {\tt serv\_id}.
+  \item The contract provides different entry points that can only be
+    called by {\tt RPSUser} contracts. They are used to get
+    information on services, subscribe to services, and then stop,
+    pause and unpause subscriptions.
+  \item Finally, the Service Provider can claim the tokens that can
+    already be spent: they correspond to elapsed periods and already
+    started periods. Tokens for periods in the future are locked and
+    cannot be used, so that the user can be refunded if he stops the
+    subscription. To claim tokens, the Service Provider must first
+    call {\tt claimSubscriptions} to unlock tokens for all
+    subscriptions. Once tokens have been unlocked, the Service
+    Provider can call the {\tt transferClaimed} function, providing
+    the token root (address 0 is used for TONs) and the destination
+    wallet.
+  \end{itemize}
+  
+\item[{\tt RPSUser} contract:] the {\tt RPSUser} contract is in charge
+  of managing subscriptions for a given user (identified either by a
+  pubkey or an address).
+  
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/contracts/RPSUser.spp}
+
+  The contract is used as follows:
+  \begin{itemize}
+  \item The user must transfer tokens to the contract to be able to
+    subscribe to services. For that, the user may use {\tt needWallet}
+    to create a wallet for a specific TIP-3 token, and {\tt getWallet}
+    to get the address of the wallet, and its current balance. He can
+    then transfer tokens to the wallet. He can also use {\tt transfer}
+    to recover some of the tokens to his personal wallet.
+  \item The user can use {\tt subscribe} to subscribe to a particular
+    service. He must provide {\tt provider}, the address of the
+    Service Provider contract, {\tt serv\_id}, the identifier of the
+    service, {\tt periods}, the number of periods, and {\tt callback},
+    the address of a callback contract (or the address 0). The user
+    can use {\tt getSubscriptions} to check if the service was
+    correctly added. Events and callbacks are used to warn the user if
+    a problem occurred and the service could not be subscribed.
+  \item For every subscription, the user can call {\tt stopSubscribe},
+    {\tt pauseSubscribe} and {\tt unpauseSubscribe}. {\tt
+      stopSubscribe} will refund the user for periods that have not
+    yet started. {\tt pauseSubscribe} pauses the subscription, and
+    {\tt unpause} continues a paused subscription, with exactly the
+    same remaining time as when it was paused.
+  \end{itemize}
+  
 \end{description}
 
 \subsection{Debots}
@@ -108,12 +195,46 @@ The System provides 3 different kinds of contracts:
 The System provides 2 different kinds of debots:
 
 \begin{description}
-\item[{\tt RPSUserDebot}]
-\item[{\tt RPSProviderDebot}]
+\item[{\tt RPSUserDebot}:] This debot allows a user to manage his
+  subscriptions. It must be initialized with the address of the root
+  contract. If the {\tt RPSUser} contract of the user has not yet been
+  deployed, the debot will transfer an initial credit from the user's
+  multisig to the root contract, and then deploy the contract.
+
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/debot/RPSUserDebot.spp}
+
+  
+\item[{\tt RPSProviderDebot}:] This debot allows a Service Provider to
+  manage his services and claim his subscriptions. It must be
+  initialized with the address of the root contract. If the {\tt
+    RPSProvider} contract has not yet been deployed, the debot will
+  transfer an initial credit from the owner's multisig to the root
+  contract, and then deploy the contract.
+
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/debot/RPSProviderDebot.spp}
+  
 \end{description}
 
 \subsection{Multiple Currencies}
 
+Both {\tt RPSUser} and {\tt RPSProvider} inherits from {\tt
+  MultiWallet} contract, a contract that is used to manage multiple
+wallets for multiple TIP-3 tokens. The address 0 is reserved for TONs.
+
+  The code is available here: \url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/contract/MultiWallet.spp}
+
 \subsection{Development Tools}
+
+We provide debots so that the contracts can be easily tested. For the
+development itself, we used {\tt ft},
+\url{https://github.com/OCamlPro/freeton_wallet}, both to build
+Solidity contracts, deploy them and test them.
+
+During the contest, many new features were added to {\tt ft},
+especially to ease the development of debots. In particular, Solidity
+files with {\tt spp} extension are preprocessed using {\tt cpp -E},
+and we provide a set of macros to simplify the development of depots.
+\url{https://github.com/OCamlPro/devex-27-recurring-payments/blob/master/debot/lib/cpp.sol}
+
 
 \end{document}

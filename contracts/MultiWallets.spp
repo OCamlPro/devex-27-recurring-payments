@@ -93,10 +93,11 @@ abstract contract MultiWallets is
     g_token_balances[ token_root ] += amount ;
   }
 
-  function getWallet( address token_root ) public view responsible
-    returns ( address wallet )
+  function getWallet( address token_root )
+    public view returns ( address wallet, uint128 balance)
   {
-    wallet = g_token_wallets [ token_root ];
+    wallet = _get_wallet( token_root );
+    balance = _get_balance( token_root );
   }
 
   function _get_wallet( address token_root ) internal view returns ( address wallet )

@@ -1,0 +1,236 @@
+{
+	"ABI version": 2,
+	"header": ["pubkey", "time", "expire"],
+	"functions": [
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "_check_owner_or_root",
+			"inputs": [
+				{"name":"min_balance","type":"uint128"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "needWallet",
+			"inputs": [
+				{"name":"token_root","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "transfer",
+			"inputs": [
+				{"name":"token_root","type":"address"},
+				{"name":"amount","type":"uint128"},
+				{"name":"dest_wallet","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "subscribe",
+			"inputs": [
+				{"name":"provider","type":"address"},
+				{"name":"serv_id","type":"uint32"},
+				{"name":"periods","type":"uint8"},
+				{"name":"callback","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getSubscriptions",
+			"inputs": [
+			],
+			"outputs": [
+				{"components":[{"name":"sub_uid","type":"uint64"},{"name":"provider","type":"address"},{"name":"serv_id","type":"uint32"},{"name":"periods","type":"uint8"},{"name":"callback","type":"address"},{"components":[{"name":"name","type":"bytes"},{"name":"description","type":"bytes"},{"name":"period","type":"uint64"},{"name":"token_root","type":"address"},{"name":"period_cost","type":"uint128"}],"name":"service","type":"tuple"},{"name":"status","type":"uint8"},{"name":"sub_pid","type":"uint64"},{"name":"sub_date","type":"uint64"}],"name":"subscriptions","type":"map(uint64,tuple)"}
+			]
+		},
+		{
+			"name": "clearOldSubscriptions",
+			"inputs": [
+			],
+			"outputs": [
+				{"components":[{"name":"sub_uid","type":"uint64"},{"name":"provider","type":"address"},{"name":"serv_id","type":"uint32"},{"name":"periods","type":"uint8"},{"name":"callback","type":"address"},{"components":[{"name":"name","type":"bytes"},{"name":"description","type":"bytes"},{"name":"period","type":"uint64"},{"name":"token_root","type":"address"},{"name":"period_cost","type":"uint128"}],"name":"service","type":"tuple"},{"name":"status","type":"uint8"},{"name":"sub_pid","type":"uint64"},{"name":"sub_date","type":"uint64"}],"name":"old_subs","type":"tuple[]"}
+			]
+		},
+		{
+			"name": "continueSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"components":[{"name":"name","type":"bytes"},{"name":"description","type":"bytes"},{"name":"period","type":"uint64"},{"name":"token_root","type":"address"},{"name":"period_cost","type":"uint128"}],"name":"s","type":"tuple"},
+				{"name":"token_wallet","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "callbackSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"status","type":"uint8"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "confirmSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"sub_pid","type":"uint64"},
+				{"name":"sub_date","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "stopSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "stoppedSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"periods","type":"uint8"},
+				{"name":"sub_date","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "pauseSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "pausedSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"periods","type":"uint8"},
+				{"name":"consumed","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "unpauseSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "unpausedSubscribe",
+			"inputs": [
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"periods","type":"uint8"},
+				{"name":"sub_date","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "expectedWalletAddressCallback",
+			"inputs": [
+				{"name":"wallet","type":"address"},
+				{"name":"value1","type":"uint256"},
+				{"name":"value2","type":"address"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "tokensReceivedCallback",
+			"inputs": [
+				{"name":"value0","type":"address"},
+				{"name":"token_root","type":"address"},
+				{"name":"amount","type":"uint128"},
+				{"name":"value3","type":"uint256"},
+				{"name":"value4","type":"address"},
+				{"name":"value5","type":"address"},
+				{"name":"value6","type":"address"},
+				{"name":"value7","type":"uint128"},
+				{"name":"value8","type":"cell"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "tokensBouncedCallback",
+			"inputs": [
+				{"name":"value0","type":"address"},
+				{"name":"token_root","type":"address"},
+				{"name":"amount","type":"uint128"},
+				{"name":"value3","type":"address"},
+				{"name":"value4","type":"uint128"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getWallet",
+			"inputs": [
+				{"name":"token_root","type":"address"}
+			],
+			"outputs": [
+				{"name":"wallet","type":"address"},
+				{"name":"balance","type":"uint128"}
+			]
+		}
+	],
+	"data": [
+		{"key":1,"name":"s_root","type":"address"},
+		{"key":2,"name":"s_owner","type":"address"}
+	],
+	"events": [
+		{
+			"name": "Event",
+			"inputs": [
+				{"name":"user","type":"address"},
+				{"name":"provider","type":"address"},
+				{"name":"sub_uid","type":"uint64"},
+				{"name":"serv_id","type":"uint32"},
+				{"name":"periods","type":"uint8"},
+				{"name":"status","type":"uint8"},
+				{"name":"date","type":"uint64"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "BadBalance",
+			"inputs": [
+				{"name":"periods","type":"uint8"},
+				{"name":"period_cost","type":"uint128"},
+				{"name":"cost","type":"uint128"},
+				{"name":"balance","type":"uint128"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "MultiWalletsError",
+			"inputs": [
+				{"name":"error","type":"uint64"}
+			],
+			"outputs": [
+			]
+		}
+	]
+}

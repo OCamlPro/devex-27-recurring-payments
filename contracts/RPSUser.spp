@@ -55,7 +55,16 @@ IRPSUser
     _check_owner_or_root( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
     _need_wallet( token_root );
   }
-
+  
+  function transfer( address token_root, uint128 amount, address dest_wallet )
+    public 
+  {
+    _check_owner_or_root( FUNCTION_COST + TRANSFER_COST );
+    uint128 balance = _get_balance( token_root );
+    require( balance >= amount );
+    _transfer( token_root, amount, dest_wallet );
+  }
+  
   function subscribe( address provider,
                       uint32 serv_id,
                       uint8 periods,

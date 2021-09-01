@@ -1,0 +1,102 @@
+{
+	"ABI version": 2,
+	"header": ["pubkey", "time", "expire"],
+	"functions": [
+		{
+			"name": "constructor",
+			"inputs": [
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "creditBalance",
+			"inputs": [
+				{"name":"pubkey","type":"uint256"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "deployProvider",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"addr","type":"address"}
+			]
+		},
+		{
+			"name": "deployUser",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"addr","type":"address"}
+			]
+		},
+		{
+			"name": "getBalance",
+			"inputs": [
+				{"name":"pubkey","type":"uint256"}
+			],
+			"outputs": [
+				{"name":"value0","type":"uint128"}
+			]
+		},
+		{
+			"name": "getUserCode",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"value0","type":"cell"}
+			]
+		},
+		{
+			"name": "getProviderCode",
+			"inputs": [
+			],
+			"outputs": [
+				{"name":"value0","type":"cell"}
+			]
+		},
+		{
+			"name": "setUserCode",
+			"inputs": [
+				{"name":"user_code","type":"cell"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "setProviderCode",
+			"inputs": [
+				{"name":"provider_code","type":"cell"}
+			],
+			"outputs": [
+			]
+		},
+		{
+			"name": "getProviderAddress",
+			"inputs": [
+				{"name":"pubkey","type":"uint256"},
+				{"name":"owner","type":"address"}
+			],
+			"outputs": [
+				{"name":"value0","type":"address"}
+			]
+		},
+		{
+			"name": "getUserAddress",
+			"inputs": [
+				{"name":"pubkey","type":"uint256"},
+				{"name":"owner","type":"address"}
+			],
+			"outputs": [
+				{"name":"value0","type":"address"}
+			]
+		}
+	],
+	"data": [
+	],
+	"events": [
+	]
+}
