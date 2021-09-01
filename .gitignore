@@ -1,1 +1,6 @@
 *~
+/*.abi.json
+/*.sol
+/*.tvm
+/*.code
+*.log
