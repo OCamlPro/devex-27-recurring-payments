@@ -14,6 +14,4 @@ echo 'Multisig:'
 ft -q output '%{account:address:user1}'
 
 
-#$FT client -- debot fetch %{account:address:RPSProviderDebot}
-$FT client -- debot invoke %{account:address:RPSProviderDebot} '%[account:in-message:RPSProviderDebot:0:init:{ "multisig": "%{account:address:user1}" }]'
-
+$FT call RPSProviderDebot addService --sign user0 '{ "service": "12", "callback": 0 }'

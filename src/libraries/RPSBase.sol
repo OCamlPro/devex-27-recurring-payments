@@ -13,6 +13,8 @@ library RPSBase {
                Pending,
                Subscribed,
                Paused,
+               // the following status are only sent to callbacks, they cannot
+               // be the current state 
                Stopped,
                Unpaused,
                ErrorNoSuchService,

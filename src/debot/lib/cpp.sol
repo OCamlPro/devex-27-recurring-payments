@@ -1,4 +1,7 @@
 
+#define _F(f) tvm.functionId(f)
+#define F_(f) tvm.functionId(f)
+
 #define MSGINT(okCallback, errorCallback) \
         { \
           abiVer: 2, \
@@ -7,8 +10,8 @@
           pubkey: nopubkey, \
           time: uint64(now), \
           expire: 0, \
-          callbackId: tvm.functionId(okCallback), \
-          onErrorId: tvm.functionId(errorCallback), \
+          callbackId: _F(okCallback), \
+          onErrorId: _F(errorCallback), \
           } 
 
 #define MSGEXT(pkey,okCallback, errorCallback)  \
@@ -19,8 +22,8 @@
           pubkey: pkey, \
           time: uint64(now), \
           expire: 0, \
-          callbackId: tvm.functionId(okCallback), \
-          onErrorId: tvm.functionId(errorCallback), \
+          callbackId: _F(okCallback), \
+          onErrorId: _F(errorCallback), \
           } 
 
 #define FWD_GAS { value: 0, flag: 64, bounce: true }
@@ -29,9 +32,8 @@
 
 #define PRINTF(fmt...) Terminal.print(0, format(fmt))
 #define PRINT(s) Terminal.print(0, s)
-
-#define _F(f) tvm.functionId(f)
-#define F_(f) tvm.functionId(f)
+#define CONFIRM(f, s) ConfirmInput.get(_F(f),s)
+#define INPUT(f, s, multiline) Terminal.input(_F(f),s, multiline)
 
 #define CODEHASH(cc) 0x%{get-code-hash:contract:tvc:cc}
 
@@ -137,11 +139,19 @@
      );
  */
 
-#define MENU(code) \
-  MenuItem[] items ; \
-  code \
-  Menu.select("What is your choice?", "", items)
+#define MENU_WITH_TITLE(title, code)             \
+  MenuItem[] items ;                             \
+  code                                           \
+  Menu.select(title, "", items)
+
+#define MENU(code) MENU_WITH_TITLE("What is your choice?", code)
 
 #define MENU_ITEM(text, f) \
   items.push( MenuItem(text, "", tvm.functionId(f)) )
 
+#define REQUIRE_TVM_PUBKEY() \
+  require( tvm.pubkey() == msg.pubkey(), 100 )
+
+#define ACCEPT_TVM_PUBKEY() \
+  REQUIRE_TVM_PUBKEY();     \
+  tvm.accept()

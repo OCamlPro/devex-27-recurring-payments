@@ -17,7 +17,7 @@ import "lib/Upgradable.sol";
 import "lib/Transferable.sol";
 
 import "lib/Utility.sol";
-import "interfaces/IMultisig.sol";
+import "../interfaces/IMultisig.sol";
 import "../contracts/RPSProvider.spp";
 import "../contracts/RPSRoot.spp";
 

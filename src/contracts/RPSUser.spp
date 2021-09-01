@@ -47,13 +47,13 @@ IRPSUser
     _MultiWallets();
   }
 
-  function NeedWallet ( address token_root ) public
+  function needWallet ( address token_root ) public
   {
     _check_owner( FUNCTION_COST + DEPLOY_EMPTY_WALLET_COST );
     _need_wallet( token_root );
   }
 
-  function Subscribe( address provider,
+  function subscribe( address provider,
                       uint32 serv_id,
                       uint8 periods,
                       address callback ) public  override
@@ -85,6 +85,20 @@ IRPSUser
   {
     subscriptions = g_subscriptions ;
   }
+
+  function clearOldSubscriptions() override public
+    returns (UserSubscription[] old_subs)
+  {
+    for( (uint64 sub_uid, UserSubscription s) : g_subscriptions ){
+      if( s.status == RPSBase.Status.Subscribed ){
+        if( s.sub_date + s.service.period * s.periods < now ){
+          delete g_subscriptions[ sub_uid ];
+          old_subs.push( s );
+        }
+      }
+    }
+  }
+
   
   function _get_subscription( uint64 sub_uid )
     internal inline view returns ( UserSubscription sub )

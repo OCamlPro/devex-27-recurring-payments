@@ -27,7 +27,7 @@ interface IRPSUser {
   function getSubscriptions() external view returns
     ( mapping ( uint64 => UserSubscription ) subscriptions ) ;
 
-  function Subscribe( address provider,
+  function subscribe( address provider,
                       uint32 serv_id,
                       uint8 periods,
                       address callback ) external ;
@@ -35,5 +35,7 @@ interface IRPSUser {
   function stopSubscribe( uint64 sub_uid ) external view ;
   function pauseSubscribe( uint64 sub_uid ) external view ;
   function unpauseSubscribe( uint64 sub_uid ) external view ;
-      
+  function clearOldSubscriptions() external
+    returns (UserSubscription[] old_subs) ;
+
 }

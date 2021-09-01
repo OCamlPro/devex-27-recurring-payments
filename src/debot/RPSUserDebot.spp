@@ -17,7 +17,7 @@ import "lib/Upgradable.sol";
 import "lib/Transferable.sol";
 
 import "lib/Utility.sol";
-import "interfaces/IMultisig.sol";
+import "../interfaces/IMultisig.sol";
 import "../contracts/RPSRoot.spp";
 
 contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
@@ -143,44 +143,178 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
          );
   }
 
+  uint8 g_askSubUIDContinuation ;
   function subscribe() public
   {
+    _askProviderAddress();
     // TODO
     // ask Provider address
     // list Available services
     // Query service number
     // Query number of periods
-    mainMenu();
+    // mainMenu();
   }
 
+  QUERY_CONTRACT_FUNCTION(_askProviderAddress,
+                          "What Provider address should I use ?",
+                          g_provider,
+                          _listServices();
+                          )
+    
+    mapping( uint32 => RPSProvider.ProviderService ) g_services ;
+  function _listServices() internal view
+  {
+    IRPSProvider( g_provider ).getServices
+      MSGINT(onGetServices, onErrorMenu)
+      ();
+  }
+  
+  function onGetServices(
+                         mapping( uint32 => RPSProvider.ProviderService )
+                         services ) public
+  {
+    g_services = services ;
+
+    uint32 counter = 0;
+    MAP_ITER(g_services, serv_id, uint32, serv, RPSProvider.ProviderService,
+             counter++;
+             RPSBase.Service service = serv.service;
+             PRINTF("{}: name='{}' period={} cost/period={}",
+                    serv_id, service.name, service.period, service.period_cost);
+             );
+    _askService();
+  }
+
+  IRPSProvider.ProviderService g_serv;
+  QUERY_UINT256_FUNCTION(_askService,
+                         "Enter the service you want to subscribe to",
+                         rep,
+                         uint32 serv_id = uint32( rep );
+                         if( g_services.exists( serv_id ) ){
+                           g_serv = g_services[ serv_id ];
+                           _askPeriods();
+                             } else {
+                           PRINT("No such service");
+                           mainMenu();
+                         }
+                         )
+
+    uint8 g_periods;
+    QUERY_UINT256_FUNCTION(_askPeriods,
+                           "Enter the number of periods you want",
+                           rep,
+                           g_periods = uint8( rep );
+                           _subscribe();
+                           )
+    function _subscribe() public
+      {
+        g_askSubUIDContinuation = 3 ;
+        IRPSUser( g_user ).subscribe
+          MSGEXT( g_pubkey, afterAction, onErrorMenu )
+          ( g_provider,
+            g_serv.serv_id,
+            g_periods,
+            address(0) );
+      }
+    
   function stopSubscription() public
   {
-    // TODO
-    // ask sub_uid
-    // check state
-    // send message
-    mainMenu();
+    g_askSubUIDContinuation = 0 ;
+    _askSubUIDContinuation("Which subscription do you want to stop ?");
   }
 
   function pauseSubscription() public
   {
-    // TODO
-    // ask sub_uid
-    // check state
-    // send message
-    mainMenu();
+    g_askSubUIDContinuation = 1 ;
+    _askSubUIDContinuation("Which subscription do you want to pause ?");
   }
 
   function unpauseSubscription() public
   {
-    // TODO
-    // ask sub_uid
-    // check state
-    // send message
+    g_askSubUIDContinuation = 2 ;
+    _askSubUIDContinuation("Which subscription do you want to unpause ?");
+  }
+
+  function _askSubUIDContinuation(string text) internal
+  {
+    INPUT(onSubUIDContinuation, text, false);
+  }
+
+  function onSubUIDContinuation(string value) public
+  {
+    ( uint256 v, bool res ) = stoi( value ) ;
+    uint64 sub_uid = uint64(v);
+    if( !res || !g_subscriptions.exists( sub_uid ) ){
+      PRINT("Invalid entry");
+      mainMenu();
+    } else {
+      IRPSUser.UserSubscription s = g_subscriptions[ sub_uid ];
+      if( g_askSubUIDContinuation == 0 ){
+        _stopSubscription( s );
+      } else
+      if( g_askSubUIDContinuation == 1 ){
+        _pauseSubscription( s );
+      } else
+      if( g_askSubUIDContinuation == 2 ){
+        _unpauseSubscription( s );
+      } else {
+        mainMenu();
+      }          
+    }
+  }
+
+  function _stopSubscription( IRPSUser.UserSubscription s ) public
+  {
+    if( s.status == RPSBase.Status.Subscribed ){
+      RPSUser( g_user ).stopSubscribe
+        MSGEXT( g_pubkey, afterAction, onErrorMenu) ( s.sub_uid );
+    } else {
+      PRINT("Subscription cannot be stopped now.");
+      mainMenu();
+    }
+  }
+
+  function _pauseSubscription(  IRPSUser.UserSubscription s  ) public
+  {
+    if( s.status == RPSBase.Status.Subscribed ){
+      RPSUser( g_user ).pauseSubscribe
+        MSGEXT( g_pubkey, afterAction, onErrorMenu) ( s.sub_uid );
+    } else {
+      PRINT("Subscription cannot be paused now.");
+      mainMenu();
+    }
+  }
+
+  function _unpauseSubscription( IRPSUser.UserSubscription s   ) public
+  {
+        if( s.status == RPSBase.Status.Paused ){
+      RPSUser( g_user ).stopSubscribe
+        MSGEXT( g_pubkey, afterAction, onErrorMenu) ( s.sub_uid );
+    } else {
+      PRINT("Subscription cannot be unpaused now.");
+      mainMenu();
+    }
+  }
+
+  function afterAction() public
+  {
+    if( g_askSubUIDContinuation == 0 ){
+      PRINT("Message sent to stop subscription.");
+    } else
+    if( g_askSubUIDContinuation == 1 ){
+      PRINT("Message sent to pause subscription.");
+    } else
+    if( g_askSubUIDContinuation == 2 ){
+      PRINT("Message sent to unpause subscription.");
+    } else
+    if( g_askSubUIDContinuation == 3 ){
+      PRINT("Message sent to subscribe.");
+    }
     mainMenu();
   }
   
   function onErrorMenu(uint32 sdkError, uint32 exitCode) public {
+    PRINT("An error occurred:");
     PRINTF("Error: sdkError:{} exitCode:{}", sdkError, exitCode);
     mainMenu();
   }
