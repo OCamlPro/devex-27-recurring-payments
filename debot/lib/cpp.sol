@@ -31,9 +31,12 @@
 #define MSG_GAS(v) { value: v, flag: 0, bounce: true}
 
 #define PRINTF(fmt...) Terminal.print(0, format(fmt))
+#define PRINTFCC(f,fmt...) Terminal.print(_F(f), format(fmt))
 #define PRINT(s) Terminal.print(0, s)
+#define PRINTCC(f,s) Terminal.print(_F(f), s)
 #define CONFIRM(f, s) ConfirmInput.get(_F(f),s)
 #define INPUT(f, s, multiline) Terminal.input(_F(f),s, multiline)
+#define ASK_ADDRESS(f, s) AddressInput.get(_F(f),s)
 
 #define CODEHASH(cc) 0x%{get-code-hash:contract:tvc:cc}
 

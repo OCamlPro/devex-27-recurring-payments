@@ -1,0 +1,119 @@
+% !TeX spellcheck = en_US
+\documentclass[10pt,a4paper]{article}
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,
+	urlcolor=gray
+}
+
+\usepackage{xcolor}
+\usepackage{listings}
+
+\input{solidity-highlighting}
+
+\lstdefinestyle{BashInputStyle}{
+	language=bash,
+	basicstyle=\small\sffamily,
+	columns=fullflexible,
+%	backgroundcolor=\color{yellow!20},
+	linewidth=0.9\linewidth,
+	xleftmargin=0.1\linewidth
+}
+
+
+\author{Fabrice Le Fessant\\OCamlPro SAS\\Telegram: @fabrice\_dune\\ \small{\url{https://github.com/OCamlPro/devex-27-recurring-payments}}}
+\title{Recurring Payments Smart Contracts}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Executive Summary}
+
+This document describes a Recurring Payments System developed by
+Fabrice LE FESSANT for FreeTON. The system allows {\em Service
+  Providers} to publish {\em Services}, with a {\em cost per
+  period}. Then, {\em Service Users} can subscribe to such services
+for a predefined number of periods, paying for the whole
+period. However, Service Providers can only spend the tokens for the
+current period and already elapsed periods. Users can {\em stop} a
+subscription (receiving back the tokens for the periods that will not
+be consumed, or they can just {\em pause} the subscription (they can
+later {\em unpause} such subscriptions).
+
+The main property is that, to subscribe for a large set of periods,
+only one transfer is needed. Another transfer will only happen if the
+user decides to stop the subscription, and be refunded.
+
+The System supports both TON tokens and TIP-3 tokens for all services
+(a given Service must choose only one currency to use, but a Service
+Provider can publish Services using different currencies). The current
+System uses Broxus TIP-3 tokens.
+
+The System has been deployed on the Testnet, and debots are available
+for Service Providers and Service Users. A set of test scripts is also available to test on TONOS-SE.
+
+\tableofcontents
+
+\section{Source code}
+
+The source code of all smart contracts is available at
+\url{https://github.com/OCamlPro/devex-27-recurring-payments}.
+
+\section{Deployment}
+
+The system has been deployed on the testnet.
+
+The following addresses can be used:
+\begin{description}
+  \item[Root contract: XXX] The {\tt RPSRoot} contract shared by all
+    contracts of a given System;
+  \item[Provider debot: XXX] This debot can be used to act as a
+    Service Provider, i.e. deploy a {\tt RPSProvider} contract, list
+    services, add services and claim subscriptions for elapsed
+    periods;
+  \item[User debot: XXX] This debot can be used to act as a Service
+    User, i.e deploy a {\tt RPSUser} contract, check subscriptions,
+    subscribe to services and manage them (stop, pause and unpause);
+  \item[Provider contract: XXX] This is an example Service Provider
+    contract with only one service, with a period of 1 minute, and a
+    cost of 1 ton per minute;
+    
+\end{description}
+    
+\section{Architecture}
+
+\subsection{Smart contracts}
+
+The System provides 3 different kinds of contracts:
+\begin{description}
+\item[{\tt RPSRoot} contract]: the {\tt RPSRoot} contract is in charge
+  of deploying smart contracts for Service Providers and Service
+  Users.
+\item[{\tt RPSUser} contract]
+\item[{\tt RPSProvider} contract]
+\end{description}
+
+\subsection{Debots}
+
+The System provides 2 different kinds of debots:
+
+\begin{description}
+\item[{\tt RPSUserDebot}]
+\item[{\tt RPSProviderDebot}]
+\end{description}
+
+\subsection{Multiple Currencies}
+
+\subsection{Development Tools}
+
+\end{document}

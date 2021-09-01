@@ -4,7 +4,7 @@ set -euo pipefail
 
 . ./env.sh
 
-$FT contract deploy RPSRoot --sign user0 --deployer user0 --credit 100 '{}' -f
+$FT contract deploy RPSRoot --sign $DEPLOYER --deployer $DEPLOYER --credit $ROOT_CREDIT '{}' -f
 
 
 

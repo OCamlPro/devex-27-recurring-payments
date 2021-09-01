@@ -73,7 +73,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function checkProviderContractStatus(int8 acc_type) public {
     PRINTF("Provider contract status: {}", acc_type);
     if( acc_type == 1 ){
-      _mainMenu();
+      mainMenu();
     } else {
       PRINTF("Contract {} not deployed yet.", g_provider);
       _checkProviderBalanceBeforeDeploy();
@@ -132,7 +132,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function checkProviderContractStatus2(int8 acc_type)
   {
     if( acc_type == 1 ){
-      _mainMenu();
+      mainMenu();
     } else {
       PRINTF("Provider Contract {} not yet deployed...", g_provider);
       ConfirmInput.get(_F(checkProviderContractStatus2),
@@ -142,10 +142,6 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
 
   function mainMenu() public
   {
-    _mainMenu();
-  }
-  
-  function _mainMenu() internal {
     Sdk.getBalance( F_( mainMenuWithBalance ), g_provider );
   }
 
@@ -166,20 +162,20 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function transferClaimedSubscriptions() public view
   {
     IRPSProvider( g_provider ).transferClaimed
-      MSGEXT( g_pubkey, mainMenu, onErrorRestart )
+      MSGEXT( g_pubkey, mainMenu, onErrorMenu )
       ( address(0), g_multisig ) ;
   }
   
   function claimSubscriptions() public view
   {
     IRPSProvider( g_provider ).claimSubscriptions
-      MSGEXT( g_pubkey, onClaimedSubscriptions, onErrorRestart ) () ;
+      MSGEXT( g_pubkey, onClaimedSubscriptions, onErrorMenu ) () ;
   }
 
   function listClaimedSubscriptions() public view
   {
     IRPSProvider( g_provider ).getClaimedSubscriptions
-      MSGINT( onClaimedSubscriptions, onErrorRestart ) () ;
+      MSGINT( onClaimedSubscriptions, onErrorMenu ) () ;
   }
 
   function onClaimedSubscriptions( mapping( address => uint128 ) claimed )
@@ -192,7 +188,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
         PRINTF("Claimed {} for root_token {}", balance, root_token );
       }
     }
-    _mainMenu();
+    mainMenu();
   }
   
   mapping( uint32 => RPSProvider.ProviderService ) g_services ;
@@ -200,7 +196,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
   function listServices() view public
   {
     IRPSProvider( g_provider ).getServices
-      MSGINT(onGetServices, onErrorRestart)
+      MSGINT(onGetServices, onErrorMenu)
       ();
   }
 
@@ -217,7 +213,7 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
              PRINTF("{}: name='{}' period={} cost/period={}",
                     serv_id, service.name, service.period, service.period_cost);
              );
-    _mainMenu();
+    mainMenu();
   }
 
   function publishService() public
@@ -254,13 +250,19 @@ contract RPSProviderDebot is Debot, Upgradable, Transferable, Utility {
     {
       PRINT("Adding Service on-chain");
       IRPSProvider( g_provider ).addService
-        MSGEXT( g_pubkey, mainMenu, onErrorRestart )
+        MSGEXT( g_pubkey, mainMenu, onErrorMenu )
         ( g_service, g_callback) ;
     }
 
     function listSubscriptions() public
     {
       // TODO
+    }
+    
+    function onErrorMenu(uint32 sdkError, uint32 exitCode) public {
+      PRINT("An error occurred:");
+      PRINTF("Error: sdkError:{} exitCode:{}", sdkError, exitCode);
+      mainMenu();
     }
     
 #include "RootContractMethods.sol"

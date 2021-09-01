@@ -16,5 +16,8 @@ build:
 	ft contract import --make debot/RPSProviderDebot.spp -f
 
 clean:
-	rm -f *~ *.code  *.sol *.abi.json *.tvm
+	rm -f *~ *.code  *.sol
+
+distclean: clean
+	rm -f *~ *.abi.json *.tvm
 

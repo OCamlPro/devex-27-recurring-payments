@@ -17,5 +17,10 @@ function cmdk()
 
 FT="ft --echo"
 
-export PINCODE_PASSPHRASE=my-best-passphrase
+export DEPLOYER=user0
+export PROVIDER=user1
+export TESTUSER=user1
 
+# export DEPLOYER=fabrice
+# export PROVIDER=fabrice
+export ROOT_CREDIT=3

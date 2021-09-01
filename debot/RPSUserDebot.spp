@@ -83,7 +83,7 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
       _deployUserContract();
     } else {
       MENU(
-           MENU_ITEM( "Send 3 tons from multisig", creditBalanceForDeploy );
+           MENU_ITEM( "Send 50 tons from multisig", creditBalanceForDeploy );
            MENU_ITEM( "Check balance again", checkPubkeyBalanceBeforeDeploy );
            );
     }
@@ -95,7 +95,7 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
                                       uint256(g_pubkey) );
     IMultisig( g_multisig ).sendTransaction
       MSGEXT(g_pubkey,checkPubkeyBalanceBeforeDeploy,onErrorRestart)
-    (g_root, 3 ton, true, 0, payload);
+    (g_root, 50 ton, true, 0, payload);
   }
 
   function _deployUserContract() internal
@@ -140,6 +140,7 @@ contract RPSUserDebot is Debot, Upgradable, Transferable, Utility {
          MENU_ITEM ( "Stop subscription", stopSubscription );
          MENU_ITEM ( "Pause subscription", pauseSubscription );
          MENU_ITEM ( "Unpause subscription", unpauseSubscription );
+         MENU_ITEM ( "Check status", mainMenu );
          );
   }
 

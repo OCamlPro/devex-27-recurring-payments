@@ -132,7 +132,7 @@ contract RPSRoot is IRPSRoot {
   function getProviderAddress( uint256 pubkey, address owner ) public view
     override returns ( address )
   {
-    require( need_init & NEED_PROVIDER_CODE != 0, RPSBase.EXN_ALREADY_INITIALIZED );
+    require( need_init & NEED_PROVIDER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     TvmCell stateInit = tvm.buildStateInit({
       contr: RPSProvider,
       varInit: {
@@ -149,7 +149,7 @@ contract RPSRoot is IRPSRoot {
   function getUserAddress( uint256 pubkey, address owner ) public view
     override returns ( address )
   {
-    require( need_init & NEED_USER_CODE != 0, RPSBase.EXN_ALREADY_INITIALIZED );
+    require( need_init & NEED_USER_CODE == 0, RPSBase.EXN_NOT_INITIALIZED );
     TvmCell stateInit = tvm.buildStateInit({
       contr: RPSUser,
       varInit: {

@@ -108,7 +108,7 @@ abstract contract MultiWallets is
   {
     if( token_root.value == 0 ){
       balance = address(this).balance ;
-      if( balance > 2 ton ){ // TODO: use a constant
+      if( balance > 1 ton ){ // TODO: use a constant
         balance = balance - 1 ton ;
       } else {
         balance = 0 ;

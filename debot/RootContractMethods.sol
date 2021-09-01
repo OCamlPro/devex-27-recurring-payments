@@ -16,12 +16,17 @@ function setRoot( address root ) public {
   function init( address multisig ) public
   {
     g_multisig = multisig ;
+    PRINTCC(afterInit, "Entered init");
+  }
+
+   function afterInit() public 
+   {
     _onMultisigAddress();
   }
 
   function _askMultisigAddress() internal
   {
-    AddressInput.get(F_(onMultisigAddress),
+    ASK_ADDRESS(onMultisigAddress,
                      "Which Multisig Contract do you want to work with?");
   }
 
@@ -30,9 +35,14 @@ function setRoot( address root ) public {
     _onMultisigAddress ();
   }
 
-  function _onMultisigAddress() internal
+  function _onMultisigAddress() internal 
   {
-    PRINTF("Getting my pubkey from Multisig {}", g_multisig);
+    PRINTFCC(onMultisigAddressCC,
+             "Getting my pubkey from Multisig {}", g_multisig);
+  }
+
+  function onMultisigAddressCC() public view
+  {
     IMultisig( g_multisig ).getCustodians
       MSGINT(onHasCustodians,onErrorRestart) ();
   }
